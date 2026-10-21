@@ -6,19 +6,29 @@
 <title>Dhiteta AI Office</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;600;700&family=Press+Start+2P&family=Pixelify+Sans&display=swap" rel="stylesheet">
 <style>
-  :root { --blue: #1f5fbf; --navy: #0f2a52; --bg: #eef3fa; --panel: #ffffff; --line: #c9d7ec; }
-  body { margin: 0; background: var(--bg); color: var(--navy); font-family: 'Pixelify Sans', 'Noto Sans Thai', sans-serif; line-height: 1.6; }
-  main { max-width: 1280px; margin: 0 auto; padding: 16px; }
+  :root { --blue: #79a9ef; --navy: #e1eafa; --bg: #151f37; --panel: #1c2b47; --line: #425d83; --muted: #acbdd5; --font-body: 'Pixelify Sans', 'Noto Sans Thai', sans-serif; --font-pixel: var(--font-body); }
+  *, *::before, *::after { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--navy); font-family: var(--font-body); line-height: 1.7; }
+  main { width: 100%; height: 100svh; margin: 0 auto; padding: clamp(10px, 1.5vw, 20px); display: flex; flex-direction: column; }
   header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
-  .logo { width: 28px; height: 28px; background: var(--blue); color: #fff; font-family: 'Press Start 2P', 'Noto Sans Thai', sans-serif; font-size: 14px;
-          display: grid; place-items: center; box-shadow: 4px 4px 0 var(--navy); }
-  h1 { font-family: 'Press Start 2P', 'Noto Sans Thai', sans-serif; font-size: 16px; margin: 0; }
+  .logo { flex-shrink: 0; width: 28px; height: 28px; background: #1f5fbf; color: #fff; font-family: 'Press Start 2P', var(--font-body); font-size: 14px;
+          display: grid; place-items: center; box-shadow: 4px 4px 0 #080f20; }
+  h1 { font-family: 'Press Start 2P', var(--font-body); font-size: clamp(10px, 1.5vw, 16px); line-height: 1.7; margin: 0; min-width: 0; overflow-wrap: anywhere; }
   h1 span { color: var(--blue); }
-  canvas { width: 100%; box-sizing: border-box; image-rendering: pixelated; border: 4px solid var(--blue); display: block; background: #dce8f7; box-shadow: 6px 6px 0 var(--navy); }
+  canvas { width: 100%; box-sizing: border-box; image-rendering: pixelated; border: 4px solid var(--blue); display: block; background: #dce8f7; box-shadow: 6px 6px 0 #080f20; }
+  .workspace { display: grid; grid-template-columns: minmax(0, 1fr) clamp(240px, 20vw, 320px); gap: 18px; flex: 1; min-height: 0; }
+  .scene { position: relative; width: min(100%, calc((100svh - 100px) * 1.4865)); margin: auto; }
+  .sidebar { min-width: 0; min-height: 0; display: flex; flex-direction: column; padding: 14px; background: #223451; border: 2px solid var(--line); border-radius: 0; }
+  .sidebar .bar { flex-shrink: 0; margin: 12px 0; }
+  .activity-title { font: 600 15px/1.6 var(--font-pixel); letter-spacing: .2px; margin: 0 0 8px; }
+  #log { flex: 1; min-height: 0; max-height: none; border-width: 1px; border-radius: 0; }
+  #log li { white-space: normal; overflow-wrap: anywhere; font: 12px/1.8 var(--font-body); padding: 10px 12px; }
+  .scene canvas { height: auto; }
   .bar { display: flex; gap: 12px; align-items: center; margin: 16px 0 10px; flex-wrap: wrap; }
-  button { font-family: 'Press Start 2P', 'Noto Sans Thai', sans-serif; font-size: 10px; background: var(--blue); color: #fff; border: 3px solid var(--navy); padding: 8px 12px; cursor: pointer; }
+  button { font-family: 'Press Start 2P', var(--font-body); font-size: 10px; background: var(--blue); color: #fff; border: 3px solid var(--navy); padding: 8px 12px; cursor: pointer; }
   button:hover { background: #2f7be0; }
-  #status { font-size: 15px; }
+  #status { font: 12px/1.7 var(--font-body); color: var(--muted); flex: 1 1 200px; min-width: 0; overflow-wrap: anywhere; }
+  #thai-time { position: absolute; top: 12px; left: 12px; max-width: calc(100% - 24px); padding: 5px 10px; background: var(--panel); color: var(--navy); border: 1px solid var(--line); border-radius: 0; font: 12px/1.6 var(--font-body); pointer-events: none; }
   #status::before { content: ''; display: inline-block; width: 8px; height: 8px; margin-right: 7px; background: #8b9bb2; }
   #status[data-connection="online"]::before { background: #2e9d69; }
   #status[data-connection="offline"]::before { background: #d95353; }
@@ -33,40 +43,69 @@
   .icon[style*="info-box.svg"] { color: #3974cf; }
   .legend { font-size: 15px; opacity: .85; }
   ul { list-style: none; padding: 0; margin: 0; max-height: 240px; overflow: auto; background: var(--panel); border: 4px solid var(--line); }
-  li { padding: 4px 10px; border-bottom: 1px solid #e6edf7; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  li { padding: 4px 10px; border-bottom: 1px solid #334967; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   li b { color: var(--blue); }
-  #agent-tooltip { position: fixed; z-index: 10; width: 260px; max-width: calc(100vw - 24px); box-sizing: border-box; padding: 12px 14px; border: 1px solid #526b92; border-radius: 10px; background: #142943; color: #f3f7ff; box-shadow: 0 6px 24px #0f2a5233; pointer-events: none; font: 13px/1.6 'Noto Sans Thai', sans-serif; overflow-wrap: anywhere; }
+  #agent-tooltip { position: fixed; z-index: 10; width: 260px; max-width: calc(100vw - 24px); box-sizing: border-box; padding: 12px 14px; border: 1px solid #526b92; border-radius: 0; background: #142943; color: #f3f7ff; box-shadow: 4px 4px 0 #0f2a5255; pointer-events: none; font: 13px/1.6 var(--font-body); overflow-wrap: anywhere; }
   #agent-tooltip strong { display: block; font-size: 14px; }
   #agent-tooltip p { margin: 4px 0 0; }
-  .guide { margin: 12px 0 16px; font: 14px/1.7 'Noto Sans Thai', sans-serif; }
-  .guide summary { display: list-item; width: fit-content; padding: 7px 14px; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--blue); cursor: pointer; font-weight: 600; }
+  .guide { margin: 12px 0 16px; font: 14px/1.7 var(--font-body); }
+  .guide summary { display: list-item; width: fit-content; padding: 7px 14px; border: 1px solid var(--line); border-radius: 0; background: var(--panel); color: var(--blue); cursor: pointer; font-weight: 600; }
   .guide summary:focus-visible { outline: 3px solid var(--blue); outline-offset: 3px; }
   .guide[open] summary { margin-bottom: 12px; }
   .guide-content { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 12px; }
-  .guide section { padding: 16px; background: #fff; border: 1px solid var(--line); border-radius: 10px; }
+  .guide section { padding: 16px; background: #243957; border: 1px solid var(--line); border-radius: 0; }
   .guide h2 { margin: 0 0 10px; font-size: 15px; }
   .guide p { margin: 6px 0; }
   .guide dl { margin: 0; }
   .guide dt { font-weight: 600; margin-top: 10px; }
-  .guide dd { margin: 2px 0 0; color: #506686; }
+  .guide dd { margin: 2px 0 0; color: var(--muted); }
+  .scene-controls { position: relative; display: flex; align-items: flex-start; gap: 8px; flex-shrink: 0; }
+  .scene-controls button, .scene-controls summary { display: flex; align-items: center; min-height: 36px; padding: 6px 10px; margin: 0; border: 1px solid var(--line); border-radius: 0; background: var(--panel); color: var(--navy); font: 600 14px/1.6 var(--font-pixel); cursor: pointer; box-shadow: 2px 2px 0 #080f20; }
+  .scene-controls button:hover, .scene-controls summary:hover { background: #314e76; }
+  .scene-controls summary { list-style: none; }
+  .scene-controls summary::-webkit-details-marker { display: none; }
+  .scene-controls .guide { margin: 0; }
+  .scene-controls .guide[open] summary { margin-bottom: 0; }
+  .scene-controls .guide-content { position: absolute; z-index: 3; top: 44px; right: 0; width: 100%; max-height: min(65svh, 450px); overflow: auto; grid-template-columns: 1fr; padding: 10px; background: #192940; border: 2px solid var(--line); border-radius: 0; box-shadow: 4px 4px 0 #0f2a5233; }
+  @media (max-width: 800px) {
+    main { height: auto; min-height: 100svh; }
+    .workspace { grid-template-columns: 1fr; }
+    .scene { width: min(100%, calc((100svh - 110px) * 1.4865)); }
+    .sidebar { height: 320px; }
+  }
+  @media (max-width: 600px) {
+    header { gap: 9px; }
+    canvas { border-width: 2px; box-shadow: 3px 3px 0 #080f20; }
+    .bar { gap: 8px; margin-top: 12px; }
+    button { min-height: 44px; }
+    #thai-time { top: 7px; left: 7px; padding: 3px 6px; font-size: 10px; }
+    .scene-controls { gap: 6px; }
+    .scene-controls button, .scene-controls summary { min-height: 36px; font-size: 13px; padding: 5px 8px; width: auto; }
+    .guide summary { width: 100%; padding: 10px 12px; }
+    .guide section { padding: 12px; }
+    ul { max-height: 30svh; border-width: 2px; }
+    li { white-space: normal; overflow-wrap: anywhere; font-size: 14px; }
+  }
 </style>
 </head>
 <body>
 <main>
   <header><div class="logo">D</div><h1>DHITETA <span>AI</span> · AGENT OFFICE</h1></header>
-  <canvas id="c"></canvas>
-  <aside id="agent-tooltip" role="tooltip" hidden><strong id="agent-tooltip-name"></strong><p id="agent-tooltip-state"></p><p id="agent-tooltip-task"></p></aside>
-  <div class="bar">
-    <button id="demo"><span class="icon" style="--icon:url('/assets/icons/play.svg')" aria-hidden="true"></span>DEMO</button>
-    <span id="status">กำลังเชื่อมต่อ…</span>
+  <div class="workspace">
+  <div class="scene">
+    <canvas id="c" aria-label="แผนที่ Agent Office พร้อมสถานะกิจกรรม"></canvas>
+    <span id="thai-time" aria-label="เวลาและช่วงวันในประเทศไทย"></span>
   </div>
+  <aside class="sidebar" aria-label="เครื่องมือและกิจกรรม Agent">
+    <div class="scene-controls">
+    <button id="demo"><span class="icon" style="--icon:url('/assets/icons/play.svg')" aria-hidden="true"></span>DEMO</button>
   <details class="guide">
-    <summary><span class="icon" style="--icon:url('/assets/icons/info-box.svg')" aria-hidden="true"></span>คู่มือ Office · ตัวละครและโซนงาน</summary>
+    <summary><span class="icon" style="--icon:url('/assets/icons/info-box.svg')" aria-hidden="true"></span>คู่มือ</summary>
     <div class="guide-content">
       <section aria-labelledby="guide-characters">
         <h2 id="guide-characters">รู้จักตัวละคร</h2>
         <dl>
-          <dt style="color:#ba5a3b"><span class="icon" style="--icon:url('/assets/icons/message.svg')" aria-hidden="true"></span>Claude</dt><dd>ตัวละครเสื้อสูทสีส้ม</dd>
+          <dt style="color:#f0aa88"><span class="icon" style="--icon:url('/assets/icons/message.svg')" aria-hidden="true"></span>Claude</dt><dd>ตัวละครเสื้อสูทสีส้ม</dd>
           <dt><span class="icon" style="--icon:url('/assets/icons/terminal.svg')" aria-hidden="true"></span>Codex</dt><dd>ตัวละครฮู้ดสีดำ</dd>
         </dl>
         <p>ทั้งสองเป็นสมาชิกประจำที่เห็นได้ทันที เมื่อมีกิจกรรมจาก session จริง ตัวละครจะเดินไปยังโซนงานที่เกี่ยวข้อง</p>
@@ -87,11 +126,17 @@
         <p><b>ชี้เมาส์ที่ตัวละครหรือป้ายชื่อ</b> เพื่อดูชื่อโปรเจกต์ สถานะ และงานล่าสุด</p>
         <p><b>ปุ่ม DEMO</b> สร้างตัวละครสาธิตให้เดินสลับโซน โดยไม่เรียกใช้งาน AI จริง</p>
         <p><b>ยังไม่เชื่อม session</b> หมายถึงตัวละครประจำที่ยังไม่ได้ผูกกับกิจกรรมจริง การเดินเล่นเป็นเพียงภาพเคลื่อนไหวและไม่ใช้ token</p>
-        <p><b>รายการด้านล่าง</b> แสดงประวัติกิจกรรมล่าสุดที่ Office ได้รับ</p>
+        <p><b>กล่องกิจกรรม</b> แสดงประวัติกิจกรรมล่าสุดที่ Office ได้รับ</p>
       </section>
     </div>
   </details>
-  <ul id="log"></ul>
+    </div>
+  <div class="bar"><span id="status">กำลังเชื่อมต่อ…</span></div>
+  <h2 class="activity-title">กิจกรรมล่าสุด</h2>
+  <ul id="log" aria-label="กิจกรรมล่าสุดของ Agent"></ul>
+  </aside>
+  </div>
+  <aside id="agent-tooltip" role="tooltip" hidden><strong id="agent-tooltip-name"></strong><p id="agent-tooltip-state"></p><p id="agent-tooltip-task"></p></aside>
 </main>
 <script src="/office.js"></script>
 </body>

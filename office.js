@@ -3,9 +3,27 @@
 // Logic runs on a plain grid (route / zones / blocked); only drawing is projected to isometric.
 const cv = document.getElementById('c'), ctx = cv.getContext('2d');
 const COLS = 32, ROWS = 22, TW = 24, TH = 12, WALL = 72, SCALE = 2;
-const OX = 274, OY = WALL + 16;
-const W = 668, H = OY + 336;
-cv.width = W * SCALE; cv.height = H * SCALE;
+const OX = 274, OY = WALL + 100;
+const W = 668, H = OY + 436;
+const thaiClock = new Intl.DateTimeFormat('en-GB', { timeZone:'Asia/Bangkok', hour:'2-digit', minute:'2-digit', hourCycle:'h23' });
+function lightingAt(date) {
+  const parts = Object.fromEntries(thaiClock.formatToParts(date).map(p => [p.type,p.value]));
+  const hour = Number(parts.hour), minute = Number(parts.minute), h = hour + minute/60;
+  const daylight = h < 5 || h >= 19 ? 0 : h < 7 ? (h-5)/2 : h < 17 ? 1 : (19-h)/2;
+  return { hour, minute, daylight, label:h >= 5 && h < 7 ? 'ยามเช้า' : h >= 7 && h < 17 ? 'กลางวัน' : h >= 17 && h < 19 ? 'ยามเย็น' : 'กลางคืน', time:`${parts.hour}:${parts.minute}` };
+}
+let lighting = lightingAt(new Date()), lightingMinute = '';
+function updateLighting() {
+  const now = new Date(), minute = Math.floor(now.getTime()/60000);
+  if (minute === lightingMinute) return;
+  lightingMinute = minute; lighting = lightingAt(now);
+  document.getElementById('thai-time').textContent = `${lighting.time} น. · ${lighting.label} · เวลาไทย`;
+  const mix = (night, day) => '#' + [1,3,5].map(i => Math.round(parseInt(night.slice(i,i+2),16)*(1-lighting.daylight)+parseInt(day.slice(i,i+2),16)*lighting.daylight).toString(16).padStart(2,'0')).join('');
+  C.sky = mix('#1c315c','#9fd0f5'); C.sky2 = mix('#344b80','#c4e3fa');
+}
+// Visible crop of the world: zooms the view onto the office floor.
+const VIEW = { x: 60, y: 110, w: 550, h: 370 };
+cv.width = VIEW.w * SCALE; cv.height = VIEW.h * SCALE;
 const blocked = new Set(), objects = [], agents = new Map();
 const key = (x, y) => `${x},${y}`;
 
@@ -181,8 +199,88 @@ function floorColor(kind, x, y) {
   return { wood: odd ? '#e8d4b0' : '#e2cca5', tile: odd ? '#f7f9fc' : '#edf2f9', carpet: odd ? '#3d70c2' : '#3567b8', dark: odd ? '#2f394e' : '#2a3346' }[kind]
     || (odd ? '#e9eef6' : '#e2e9f3');
 }
+function drawBangkok(t) {
+  const day = lighting.daylight, twilight = lighting.label === 'ยามเย็น' || lighting.label === 'ยามเช้า';
+  const mix = (a,b) => '#' + [1,3,5].map(i => Math.round(parseInt(a.slice(i,i+2),16)*(1-day)+parseInt(b.slice(i,i+2),16)*day).toString(16).padStart(2,'0')).join('');
+  const sky = ctx.createLinearGradient(0,0,0,H);
+  sky.addColorStop(0,mix('#101a38','#9bc9e6'));
+  sky.addColorStop(.48,twilight ? '#e6ad9f' : mix('#394064','#e7edf2'));
+  sky.addColorStop(1,mix('#18283f','#b8c8ce'));
+  ctx.fillStyle=sky;ctx.fillRect(0,0,W,H);
+  // Small pixel celestial bodies and clouds sit behind Bangkok's layered skyline.
+  if(day<.35){
+    for(let i=0;i<38;i++) rect((i*79+19)%W,8+(i*31)%82,1,1,'#d9e6ef');
+    rect(577,23,14,14,'#fff0be');rect(582,20,9,3,'#fff0be');rect(582,22,12,11,mix('#101a38','#9bc9e6'));
+  } else {
+    rect(568,28,20,20,twilight?'#ffd398':'#fff1ce');
+    [[60,29],[322,19],[475,54]].forEach(([x,y])=>{rect(x,y,43,5,'#ffffff55');rect(x+12,y-4,24,5,'#ffffff55');});
+  }
+  for(let i=0;i<25;i++) {
+    const x=i*29-8,h=25+(i*37)%58;
+    rect(x,150-h,25,h,mix('#263755','#abc0cf'));rect(x+3,146-h,19,4,mix('#334567','#bfd0db'));
+  }
+  // Original skyline silhouettes: stepped high-rise, rooftop tanks, antennas and shophouses.
+  const towers=[[7,49,35],[53,76,31],[104,111,36],[158,67,34],[208,91,29],[269,57,40],[331,95,33],[388,62,37],[448,104,37],[509,77,33],[563,118,36],[619,70,39]];
+  towers.forEach(([x,h,w],i)=>{
+    const y=157-h;
+    rect(x+4,y+5,w,h,mix('#16243e','#718fa6'));rect(x,y,w,h,mix('#23334f','#92a9bb'));
+    rect(x,y,w,3,mix('#42526d','#b1c2ce'));
+    if(i===2||i===10){rect(x+6,y-9,w-12,9,mix('#23334f','#92a9bb'));rect(x+w/2,y-17,2,8,'#72869b');}
+    else {rect(x+5,y-7,9,7,mix('#34405a','#8299a6'));rect(x+6,y-9,7,2,'#596e85');}
+    for(let row=0;row<Math.floor((h-8)/9);row++) for(let col=0;col<Math.floor((w-5)/7);col++){
+      const lit=(row*11+col*7+i)%5<2;
+      rect(x+4+col*7,y+7+row*9,3,5,day<.6&&lit?'#efca7e':mix('#142239','#c4dbe6'));
+    }
+    if(i===4){for(let n=0;n<4;n++)rect(x+w-8,y+12+n*10,8,8,mix('#394064','#d7e3e9'));}
+  });
+  // Elevated railway, with an animated train visible between the office and skyline.
+  rect(0,166,W,7,mix('#33435a','#8e9eac'));rect(0,165,W,2,'#b3c0ca');
+  for(let x=22;x<W;x+=88)rect(x,173,7,28,mix('#29394e','#a3b0b8'));
+  const trainX=(t/85)%(W+124)-124;
+  rect(trainX,151,118,13,'#e3eaf1');rect(trainX,161,118,3,'#cf5b56');
+  for(let i=0;i<12;i++)rect(trainX+5+i*9,154,6,5,'#3c6683');
+  // Distant rooftops sit below the high-rise office, with no ground-level road in view.
+  for(let i=0;i<7;i++){
+    const x=i<3?i*25:W-100+(i-3)*25,y=H-101+(i%3)*9;
+    rect(x,y,22,62,mix('#344158','#9facb7'));rect(x-1,y-3,24,5,mix('#57677c','#c9c5b8'));
+    rect(x+5,y-10,7,7,'#748e9c');
+    for(let n=0;n<4;n++)rect(x+5,y+8+n*10,4,5,day<.6?'#dbb16d':'#c8dce4');
+  }
+  ctx.font='600 9px "Pixelify Sans", "Noto Sans Thai", sans-serif';ctx.fillStyle=day<.6?'#e6d5b3':'#3c5972';ctx.textAlign='right';ctx.fillText('BANGKOK · กรุงเทพฯ',VIEW.x+VIEW.w-14,VIEW.y+17);ctx.textAlign='start';
+}
+
+function drawBuildingExterior() {
+  const left = [iso(1,21),iso(31,21)], right = [iso(31,1),iso(31,21)];
+  const depth = H - Math.min(...left.concat(right).map(p => p[1])) + 30;
+  const face = (edge, top, bottom, color) => poly([up(edge[0],-top),up(edge[1],-top),up(edge[1],-bottom),up(edge[0],-bottom)],color);
+  face(left,0,depth,'#71859f'); face(right,0,depth,'#4d6382');
+  // Continue the facade beyond the canvas so the tower has no visible base.
+  for(let floor=0;14+floor*62<depth;floor++) {
+    const z=14+floor*62;
+    face(left,z-5,z-2,'#9cacc2');face(right,z-5,z-2,'#7088a6');
+    for(let col=0;col<14;col++) {
+      const a=2+col*2;
+      const edge=[iso(a,21),iso(a+1.35,21)];
+      const lit=lighting.daylight<.6&&(col*7+floor*3)%5<2;
+      face(edge,z,z+30,'#243d5d');
+      face([iso(a+.12,21),iso(a+1.22,21)],z+3,z+27,lit?'#edc587':lighting.daylight<.6?'#1c2f4c':'#9cc1d6');
+    }
+    for(let col=0;col<9;col++) {
+      const a=2+col*2;
+      const lit=lighting.daylight<.6&&(col*3+floor)%5<2;
+      face([iso(31,a),iso(31,a+1.35)],z,z+30,'#1b304b');
+      face([iso(31,a+.12),iso(31,a+1.22)],z+3,z+27,lit?'#d9b778':lighting.daylight<.6?'#172a44':'#769dbb');
+    }
+  }
+  // Continuous corner columns extend below the viewport.
+  face([iso(1,21),iso(1.45,21)],0,depth,'#a2b1c5');
+  face([iso(30.55,21),iso(31,21)],0,depth,'#98aac1');
+  face([iso(31,20.55),iso(31,21)],0,depth,'#637d9d');
+}
+
 function drawRoom(t) {
-  ctx.fillStyle = '#dce8f7'; ctx.fillRect(0, 0, W, H);
+  drawBangkok(t);
+  drawBuildingExterior();
   // floor
   for (let y = 1; y < 21; y++) for (let x = 1; x < 31; x++) {
     const area = AREAS.find(a => x >= a.x && x < a.x + a.w && y >= a.y && y < a.y + a.h);
@@ -223,7 +321,7 @@ function drawRoom(t) {
   const [cx, cy] = wallPt('r', 11.5, 46);
   ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.ellipse(cx, cy, 6, 7, 0, 0, Math.PI * 2); ctx.fill();
   ctx.strokeStyle = C.navy; ctx.lineWidth = 1.5; ctx.stroke(); ctx.beginPath();
-  const now = new Date(), am = now.getMinutes() / 60 * Math.PI * 2, ah = (now.getHours() % 12) / 12 * Math.PI * 2;
+  const am = lighting.minute / 60 * Math.PI * 2, ah = ((lighting.hour % 12) + lighting.minute/60) / 12 * Math.PI * 2;
   ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.sin(am) * 4.5, cy - Math.cos(am) * 5);
   ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.sin(ah) * 3, cy - Math.cos(ah) * 3.5); ctx.stroke();
 }
@@ -443,7 +541,7 @@ function drawTags(a, t) {
   const { sx: x, sy: y } = a;
   const codex = a.kind === 'codex';
   const name = codex ? 'Codex' : 'Claude';
-  ctx.font = '500 5px Arial, "Noto Sans Thai", sans-serif'; const w = ctx.measureText(name).width + 5;
+  ctx.font = '500 5px "Pixelify Sans", "Noto Sans Thai", sans-serif'; const w = ctx.measureText(name).width + 5;
   a.tagWidth = w;
   rect(x - w / 2, y + 3, w, 8, codex ? 'rgba(28,31,38,.95)' : 'rgba(217,119,87,.96)');
   rect(x - w / 2, y + 11, w, 1, codex ? '#3ddc97' : '#8a3a1f');
@@ -467,8 +565,8 @@ function hoveredAgent(x, y) {
 function updateTooltip() {
   if (!pointer) { tooltip.hidden = true; return; }
   const r = cv.getBoundingClientRect();
-  const x = (pointer.x-r.left-cv.clientLeft)/cv.clientWidth*W;
-  const y = (pointer.y-r.top-cv.clientTop)/cv.clientHeight*H;
+  const x = (pointer.x-r.left-cv.clientLeft)/cv.clientWidth*VIEW.w+VIEW.x;
+  const y = (pointer.y-r.top-cv.clientTop)/cv.clientHeight*VIEW.h+VIEW.y;
   const a = hoveredAgent(x,y);
   cv.style.cursor = a ? 'help' : 'default';
   tooltip.hidden = !a;
@@ -481,17 +579,33 @@ function updateTooltip() {
 }
 
 function drawScene(t) {
+  updateLighting();
   drawRoom(t);
   const items = objects.map(o => ({ k: o.depth, draw: () => drawObject(o, t) }));
   for (const a of agents.values()) items.push({ k: a.x + a.y + .6, draw: () => drawAgent(a, t) });
   items.sort((p, q) => p.k - q.k).forEach(i => i.draw());
+  drawAmbientLight();
   for (const a of agents.values()) if (a.sx) drawTags(a, t);
+}
+
+function drawAmbientLight() {
+  const darkness = 1-lighting.daylight;
+  if (!darkness) return;
+  rect(0,0,W,H,`rgba(12,24,65,${darkness*.28})`);
+  // Warm pools of indoor light preserve visibility while the windows turn dark.
+  ctx.save(); ctx.globalCompositeOperation = 'screen';
+  [[5,4],[18,4],[6,16],[25,16]].forEach(([gx,gy]) => {
+    const [x,y] = iso(gx,gy), glow=ctx.createRadialGradient(x,y,0,x,y,65);
+    glow.addColorStop(0,`rgba(255,210,128,${darkness*.20})`); glow.addColorStop(1,'rgba(255,210,128,0)');
+    ctx.fillStyle=glow;ctx.fillRect(x-65,y-65,130,130);
+  });
+  ctx.restore();
 }
 
 let lastFrame=0;
 function frame(t) {
   const dt=Math.min((t-lastFrame)/1000,.05);lastFrame=t;
-  ctx.setTransform(SCALE,0,0,SCALE,0,0);ctx.imageSmoothingEnabled=false;
+  ctx.setTransform(SCALE,0,0,SCALE,-VIEW.x*SCALE,-VIEW.y*SCALE);ctx.imageSmoothingEnabled=false;
   const counts=new Map();
   expireAgents(Date.now());
   for(const [sid,a] of agents){
@@ -511,7 +625,7 @@ function frame(t) {
   }
   drawScene(t);
   updateTooltip();
-  if(!agents.size){ctx.font='bold 12px Arial, "Noto Sans Thai", sans-serif';const m='รอ Claude / Codex เข้างาน หรือกด DEMO',w=ctx.measureText(m).width+20;
+  if(!agents.size){ctx.font='bold 12px "Pixelify Sans", "Noto Sans Thai", sans-serif';const m='รอ Claude / Codex เข้างาน หรือกด DEMO',w=ctx.measureText(m).width+20;
     const [mx,my]=iso(16,11);rect(mx-w/2,my-12,w,22,'rgba(15,42,82,.88)');ctx.fillStyle='#fff';ctx.textAlign='center';ctx.fillText(m,mx,my+3);ctx.textAlign='start';}
   requestAnimationFrame(frame);
 }
