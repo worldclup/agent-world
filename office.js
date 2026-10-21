@@ -35,7 +35,9 @@ const AREAS = [
 ];
 
 // lounge
-object(2, 1, 4, 1, 'sofa'); object(3, 3, 2, 1, 'coffeeTable'); object(7, 3, 1, 1, 'armchair'); object(9, 1, 2, 1, 'coffeeBar');
+object(2, 1, 4, 1, 'sofa'); object(3, 3, 2, 1, 'coffeeTable'); object(7, 3, 1, 1, 'armchair'); object(8, 1, 3, 1, 'coffeeBar');
+const barSeats = [[8,2],[9,2],[10,2]];
+barSeats.forEach(([x,y]) => deco(x, y, 'barStool'));
 object(1, 1, 1, 1, 'plant'); object(1, 7, 1, 1, 'plant');
 // soft dividers: planters + glass partitions
 object(11, 1, 1, 3, 'planter'); object(11, 5, 1, 3, 'planter');
@@ -66,7 +68,7 @@ const icons = { read:'book', write:'edit', web:'globe', bash:'terminal', think:'
 const iconImages = Object.fromEntries([...new Set(Object.values(icons))].map(name => {
   const img = new Image(); img.src = `/assets/icons/${name}.svg`; return [name, img];
 }));
-const colors = { read:'#47a8d8', write:'#2f6fd6', web:'#dda043', bash:'#44b68e', think:'#ce79b0', talk:'#ce79b0', agent:'#ce79b0', idle:'#7894a9' };
+const colors = { read:'#2586b6', write:'#7958d1', web:'#ca8a18', bash:'#21865b', think:'#bd5692', talk:'#bd5692', agent:'#148a98', idle:'#b87436' };
 
 function route(from, to) {
   const queue = [from], prev = new Map([[key(...from), null]]);
@@ -117,11 +119,12 @@ function expireAgents(now) {
   }
 }
 
-const roamSpots = [[2,3],[5,3],[3,5],[6,5],[8,6],[9,4],[3,6],[6,7]];
+const roamSpots = [[2,3],[5,3],[3,5],[6,5],[8,6],[9,4],[3,6],[6,7], ...barSeats];
 function chooseTarget(a, assigned, now) {
   if (a.state !== 'idle') return assigned;
   if (!a.roamTarget || (!a.path.length && now >= a.nextRoam)) {
-    const candidates = roamSpots.filter(([x,y]) => !blocked.has(key(x,y)) && (x !== a.x || y !== a.y));
+    const candidates = roamSpots.filter(([x,y]) => !blocked.has(key(x,y)) && (x !== a.x || y !== a.y) &&
+      ![...agents.values()].some(other => other !== a && ((other.x === x && other.y === y) || (other.roamTarget && key(...other.roamTarget) === key(x,y)))));
     a.roamTarget = candidates[Math.floor(Math.random()*candidates.length)] || assigned;
     a.nextRoam = Infinity;
   }
@@ -253,14 +256,22 @@ function drawObject(o, t) {
       break;
     case 'coffeeBar': {
       shadowQ(x, y, w, d);
-      box(x, y, w, d, 18, '#ffffff', '#dfe7f2', '#c9d7ec');
-      box(x, y + d - .08, w, .08, 4, C.blue, C.blue, C.blue3, 0);
+      box(x, y, w, d, 17, C.wood, C.woodDark, '#b07f4a');
+      box(x - .08, y - .04, w + .16, d + .18, 2, '#ffffff', '#dfe7f2', '#c9d7ec', 17);
+      box(x, y + d - .08, w, .08, 2, C.blue, C.blue, C.blue3, 3);
+      for (let i = 1; i < w; i++) box(x + i, y + d - .02, .03, .03, 12, '#b08252', '#b08252', '#b08252', 3);
       box(x + .3, y + .15, .6, .5, 12, C.navy, '#1b3a6b', '#16315c', 18);
       const [lx, ly] = faceL(x + .3, y + .15, .6, .5, .5, 26);
       rect(lx - 1, ly, 2, 2, (t / 500 | 0) % 2 ? '#4ade80' : '#14532d');
       box(x + 1.3, y + .3, .25, .25, 4, '#fff', '#e9eef6', '#dfe7f2', 18);
+      box(x + 2.2, y + .3, .25, .25, 4, '#fff', '#e9eef6', '#dfe7f2', 18);
       break;
     }
+    case 'barStool':
+      shadowQ(x + .2, y + .2, .6, .6);
+      box(x + .42, y + .42, .16, .16, 9, C.navy, C.navy, C.blue3);
+      box(x + .2, y + .2, .6, .6, 2, C.blue2, C.blue3, C.navy, 9);
+      break;
     case 'plant': {
       shadowQ(x + .2, y + .2, .6, .6);
       box(x + .25, y + .25, .5, .5, 9, '#6b4423', '#ffffff', '#e3eaf4');
@@ -413,19 +424,20 @@ function drawAgent(a, t) {
   const [x, y] = iso(a.x + .5, a.y + .5);
   a.look = a.look || lookFor(a.sid, a.kind);
   const working = !a.path.length && ['read', 'write', 'web', 'bash'].includes(a.state);
-  const sit = !a.path.length && ['read', 'write'].includes(a.state);
+  const atBar = !a.path.length && a.state === 'idle' && barSeats.some(([sx,sy]) => a.x === sx && a.y === sy);
+  const sit = atBar || (!a.path.length && ['read', 'write'].includes(a.state));
   const frame = a.path.length ? 1 + (Math.floor(t / 140) % 2) : 0;
   const prop = a.path.length ? '' : a.state === 'idle' ? 'mug' : ['think', 'talk', 'agent'].includes(a.state) ? 'tablet' : '';
-  const img = sprite(a.look, a.dir >= 2 ? 'front' : 'back', frame, prop, sit);
+  const img = sprite(a.look, atBar ? 'front' : a.dir >= 2 ? 'front' : 'back', frame, prop, sit);
   ctx.fillStyle = 'rgba(15,42,82,.25)'; ctx.beginPath(); ctx.ellipse(x, y, 8, 3.5, 0, 0, Math.PI * 2); ctx.fill();
   const typing = working && sit && Math.floor(t / 180) % 2 ? 1 : 0;      // tiny bob while typing
   const bob = a.path.length ? (frame === 1 ? 1 : 0) : 0;
   ctx.save();
   ctx.translate(Math.round(x), 0);
   if (a.flip) ctx.scale(-1, 1);
-  ctx.drawImage(img, -SW / 2, Math.round(y) - SH + 1 + (sit ? 3 : 0) - bob - typing);
+  ctx.drawImage(img, -SW / 2, Math.round(y) - SH + 1 + (atBar ? -5 : sit ? 3 : 0) - bob - typing);
   ctx.restore();
-  a.sx = x; a.sy = y; a.top = y - SH + (sit ? 3 : 0);
+  a.sx = x; a.sy = y; a.top = y - SH + (atBar ? -5 : sit ? 3 : 0);
 }
 function drawTags(a, t) {
   const { sx: x, sy: y } = a;
