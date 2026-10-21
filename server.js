@@ -8,8 +8,11 @@ const codexProject = new Map();
 const PORT = 4321;
 const clients = new Set();
 const offsets = new Map();
+const latest = new Map();
+const ACTIVE_MS = 15 * 60e3;
 
 function send(ev) {
+  latest.set(`${ev.kind}:${ev.sid}`, ev);
   const data = `data: ${JSON.stringify(ev)}\n\n`;
   for (const c of clients) c.write(data);
 }
@@ -63,14 +66,19 @@ function handleCodex(file, e) {
   const base = { sid, project: codexProject.get(file) || 'codex', kind: 'codex', t: Date.now() };
 
   if (e.type === 'event_msg' && p.type === 'task_started') send({ ...base, state: 'think', text: '' });
+  else if (e.type === 'event_msg' && p.type === 'user_message') send({ ...base, state: 'think', text: String(p.message || '').slice(0, 80) });
   else if (e.type === 'event_msg' && p.type === 'task_complete') send({ ...base, state: 'idle', text: 'เสร็จงาน' });
   else if (e.type !== 'response_item') return;
   else if (p.type === 'message' && p.role === 'assistant') {
     const t = (p.content || []).map(c => c.text || '').join(' ').trim();
     if (t) send({ ...base, state: 'talk', text: t.replace(/\s+/g, ' ').slice(0, 80) });
-  } else if (p.type === 'custom_tool_call' && p.name === 'apply_patch') {
+  } else if (p.type === 'custom_tool_call' && /(?:^|\.)apply_patch$/.test(p.name || '')) {
     const f = (p.input || '').match(/\*\*\* \w+ File: (.+)/);
     send({ ...base, state: 'write', tool: 'apply_patch', text: f ? f[1] : '' });
+  } else if (p.type === 'custom_tool_call' && /(?:^|\.)exec$/.test(p.name || '')) {
+    const code = String(p.input || '');
+    const state = /apply_patch/.test(code) ? 'write' : /web__run|web_search/.test(code) ? 'web' : /exec_command|write_stdin/.test(code) ? 'bash' : 'read';
+    send({ ...base, state, tool: p.name, text: code.replace(/\s+/g, ' ').slice(0, 80) });
   } else if (p.type === 'web_search_call') {
     send({ ...base, state: 'web', tool: 'web_search', text: (p.action && p.action.query) || '' });
   } else if (p.type === 'function_call') {
@@ -103,19 +111,36 @@ function readNew(file, handler) {
 }
 
 // Skip existing history: start every known file at its current end.
-function walk(dir) {
+function walk(dir, handler) {
   let items = [];
   try { items = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
   for (const d of items) {
     const p = path.join(dir, d.name);
-    if (d.isDirectory()) walk(p);
-    else if (p.endsWith('.jsonl')) offsets.set(p, fs.statSync(p).size);
+    if (d.isDirectory()) walk(p, handler);
+    else if (p.endsWith('.jsonl')) {
+      const stat = fs.statSync(p);
+      offsets.set(p, stat.size);
+      // Restore only recent activity, without replaying the full conversation history.
+      if (Date.now() - stat.mtimeMs <= ACTIVE_MS) {
+        const start = Math.max(0, stat.size - 256 * 1024), buf = Buffer.alloc(stat.size - start);
+        const fd = fs.openSync(p, 'r');
+        try { fs.readSync(fd, buf, 0, buf.length, start); } finally { fs.closeSync(fd); }
+        const lines = buf.toString('utf8').split('\n');
+        if (start) lines.shift();
+        for (const line of lines) {
+          try {
+            const event = JSON.parse(line);
+            if (event.timestamp && Date.now() - Date.parse(event.timestamp) <= ACTIVE_MS) handler(p, event);
+          } catch {}
+        }
+      }
+    }
   }
 }
 
 for (const [root, handler] of [[ROOT, handle], [CODEX_ROOT, handleCodex]]) {
   if (!fs.existsSync(root)) continue;
-  walk(root);
+  walk(root, handler);
   fs.watch(root, { recursive: true }, (_, f) => {
     if (f && f.endsWith('.jsonl')) readNew(path.join(root, f), handler);
   });
@@ -126,6 +151,7 @@ http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' });
     res.write(': hi\n\n');
     clients.add(res);
+    for (const ev of latest.values()) if (Date.now() - ev.t <= ACTIVE_MS) res.write(`data: ${JSON.stringify(ev)}\n\n`);
     req.on('close', () => clients.delete(res));
   } else {
     const pathname = new URL(req.url, 'http://localhost').pathname;

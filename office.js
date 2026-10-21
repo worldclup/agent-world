@@ -290,30 +290,116 @@ function drawObject(o, t) {
 }
 
 // ---------- characters ----------
-const fronts=['....HHHH....','...HHHHHH...','...HSSSSH...','...HSEESH...','....SSSS....','...BBTBBB...','..SBBTBBBS..','..SBBTBBBS..','...BBBBBB...','...PPPPPP...','...PP..PP...','...FF..FF...'];
-const backs=['....HHHH....','...HHHHHH...','...HHHHHH...','...HHHHHH...','....HHHH....','...BBBBBB...','..SBBBBBBS..','..SBBBBBBS..','...BBBBBB...','...PPPPPP...','...PP..PP...','...FF..FF...'];
-const P = 2;
+// Chibi sprites built from layers, outlined, then cached as tiny offscreen canvases.
+const SW = 18, SH = 26;
+const shade = (hex, f) => '#' + [1, 3, 5].map(i => Math.round(parseInt(hex.slice(i, i + 2), 16) * f).toString(16).padStart(2, '0')).join('');
+const hashStr = s => [...s].reduce((a, c) => a * 31 + c.charCodeAt(0) | 0, 7) >>> 0;
+const OUTFITS = {
+  // Claude: coral blazer over a white shirt, Dhiteta badge
+  claude: ['#d97757', '#c9663f', '#e08a68'].map(main => ({ main, inner: '#ffffff', badge: C.blue, pants: '#3a3f55', shoes: '#3b2614' })),
+  // Codex: dark hoodie with drawstrings, white sneakers
+  codex: ['#23262e', '#2d3340', '#1c2a3a'].map(main => ({ main, hood: true, strings: true, pants: '#3b3f4a', shoes: '#e9eef6' })),
+};
+function lookFor(sid, kind) {
+  const h = hashStr(sid);
+  const pick = (arr, k) => { let x = (h ^ Math.imul(k + 1, 0x9e3779b9)) >>> 0; x ^= x << 13; x ^= x >>> 17; x ^= x << 5; return arr[(x >>> 0) % arr.length]; };
+  return {
+    id: `${kind}-${h % 100000}`,
+    skin: pick(['#f6d2b0', '#eabf9a', '#d6a27a', '#a8714c'], 1),
+    hair: pick(['#2b1d16', '#4a2f22', '#7a4a22', '#c9a15a', '#1d1d24', '#8e3b2f'], 4),
+    style: pick(['short', 'long', 'bun', 'spiky'], 24),
+    glasses: pick([false, true, false, false, false], 96),
+    headset: kind === 'codex' ? pick([true, false], 288) : pick([false, false, true], 288),
+    outfit: pick(OUTFITS[kind] || OUTFITS.claude, 576),
+  };
+}
+const spriteCache = new Map();
+function sprite(look, view, frame, prop, sit) {
+  const ck = [look.id, view, frame, prop, sit].join('|');
+  if (spriteCache.has(ck)) return spriteCache.get(ck);
+  const g = Array.from({ length: SH }, () => Array(SW).fill(null));
+  const f = (x, y, w, h, c) => { for (let j = y; j < y + h; j++) for (let i = x; i < x + w; i++) if (j >= 0 && j < SH && i >= 0 && i < SW) g[j][i] = c; };
+  const o = look.outfit, dark = '#1a1f2e', hairHi = shade(look.hair, 1.45), front = view === 'front';
+  if (o.hood) { f(3, 9, 12, 5, shade(o.main, .85)); f(4, 8, 10, 1, shade(o.main, .85)); }      // hood behind head
+  if (look.style === 'long') { f(3, 4, 12, 10, look.hair); }                                     // long hair behind body
+  // legs
+  if (sit) f(6, 20, 7, 2, o.pants);
+  else {
+    const l = frame === 1 ? 1 : 0, r = frame === 2 ? 1 : 0;
+    f(6, 20 - l, 3, 4, o.pants); f(10, 20 - r, 3, 4, o.pants); f(11, 20 - r, 1, 4, shade(o.pants, .8));
+    f(6, 24 - l, 3, 1, o.shoes); f(10, 24 - r, 3, 1, o.shoes);
+  }
+  // body + arms
+  f(5, 12, 8, 8, o.main); f(12, 12, 1, 8, shade(o.main, .78)); f(5, 19, 8, 1, shade(o.main, .78));
+  if (front) {
+    if (o.inner) { f(8, 12, 2, 6, o.inner); f(7, 12, 1, 2, shade(o.main, .85)); f(10, 12, 1, 2, shade(o.main, .85)); }
+    if (o.strings) { f(7, 13, 1, 3, '#e9eef6'); f(10, 13, 1, 3, '#e9eef6'); f(6, 17, 6, 1, shade(o.main, .8)); }
+    if (o.badge) { f(10, 14, 2, 2, o.badge); f(10, 14, 1, 1, '#ffffff'); }
+  }
+  f(4, 13, 1, 5, o.main); f(13, 13, 1, 5, shade(o.main, .78));
+  f(4, 18, 1, 1, look.skin); f(13, 18, 1, 1, shade(look.skin, .85));
+  // head
+  f(5, 2, 8, 10, look.skin); f(4, 3, 10, 8, look.skin); f(13, 4, 1, 6, shade(look.skin, .88)); f(5, 11, 8, 1, shade(look.skin, .88));
+  if (front) {
+    f(6, 7, 1, 2, dark); f(11, 7, 1, 2, dark); f(6, 7, 1, 1, '#3b4a6b'); f(11, 7, 1, 1, '#3b4a6b');
+    f(5, 9, 1, 1, '#f2a0a0'); f(12, 9, 1, 1, '#f2a0a0'); f(8, 10, 2, 1, '#b5655a');
+    if (look.glasses) { const gl = '#6b7690'; f(5, 6, 3, 1, gl); f(10, 6, 3, 1, gl); f(5, 7, 1, 2, gl); f(7, 7, 1, 2, gl); f(10, 7, 1, 2, gl); f(12, 7, 1, 2, gl); f(8, 7, 2, 1, gl); }
+  }
+  // hair
+  const hc = look.hair;
+  if (front) {
+    f(4, 1, 10, 3, hc); f(5, 0, 8, 1, hc); f(4, 4, 1, 3, hc); f(13, 4, 1, 3, hc); f(5, 4, 4, 1, hc); f(9, 4, 1, 1, hc);
+    if (look.style === 'spiky') { f(5, -1, 1, 1, hc); f(8, -1, 1, 2, hc); f(11, -1, 1, 1, hc); f(10, 4, 2, 1, hc); }
+    if (look.style === 'long') { f(3, 4, 1, 9, hc); f(14, 4, 1, 9, hc); }
+  } else {
+    f(4, 1, 10, 10, hc); f(5, 0, 8, 1, hc); f(5, 11, 8, 1, shade(hc, .85));
+    if (look.style === 'long') f(4, 11, 10, 3, hc);
+    if (o.hood) f(4, 9, 10, 4, shade(o.main, .9));
+  }
+  if (look.style === 'bun') { f(7, -1, 4, 2, hc); f(8, -1, 2, 1, hairHi); }
+  f(6, 1, 3, 1, hairHi);
+  if (look.headset) { f(4, 0, 10, 1, '#2b2f3a'); f(3, 5, 1, 4, '#2b2f3a'); f(14, 5, 1, 4, '#2b2f3a'); if (front) f(4, 9, 2, 1, '#2b2f3a'); }
+  // props held in front
+  if (front && prop === 'mug') { f(13, 15, 3, 3, '#ffffff'); f(16, 16, 1, 1, '#ffffff'); f(13, 15, 3, 1, '#6b4423'); }
+  if (front && prop === 'tablet') { f(6, 15, 6, 4, C.navy); f(7, 16, 4, 2, '#5aa0f0'); }
+  // outline
+  const out = g.map(r => r.slice());
+  for (let y = 0; y < SH; y++) for (let x = 0; x < SW; x++) if (!g[y][x] &&
+      [[1,0],[-1,0],[0,1],[0,-1]].some(([dx, dy]) => g[y + dy] && g[y + dy][x + dx])) out[y][x] = dark;
+  const c = document.createElement('canvas'); c.width = SW; c.height = SH;
+  const cx = c.getContext('2d');
+  out.forEach((r, y) => r.forEach((col, x) => { if (col) { cx.fillStyle = col; cx.fillRect(x, y, 1, 1); } }));
+  spriteCache.set(ck, c);
+  return c;
+}
+
 function drawAgent(a, t) {
   const [x, y] = iso(a.x + .5, a.y + .5);
-  ctx.fillStyle = 'rgba(15,42,82,.25)'; ctx.beginPath(); ctx.ellipse(x, y, 9, 4, 0, 0, Math.PI * 2); ctx.fill();
-  const codex = a.kind === 'codex';
-  const pal = { H: codex ? '#1d1d24' : ['#47322d','#273349','#805b39','#a36a45','#64436c'][a.hue], S:'#eabf9a', E:'#25364b',
-    B: codex ? '#2b2f3a' : C.blue2, T: codex ? '#e9eef6' : C.orange, P:'#1b2440', F:'#0f1424' };
-  const rows = a.dir >= 2 ? fronts : backs;          // 2: toward viewer, 3/0/1 handled in frame()
-  const flip = a.flip;
-  const beat = a.path.length ? (Math.floor(t / 140) % 2) * P : 0;
-  rows.forEach((r, j) => [...r].forEach((c, i) => {
-    if (pal[c]) rect(x + (flip ? 11 - i : i) * P - 6 * P, y - 12 * P - 1 + j * P + (j > 9 && i < 6 ? beat : 0), P, P, pal[c]);
-  }));
-  a.sx = x; a.sy = y;
+  a.look = a.look || lookFor(a.sid, a.kind);
+  const working = !a.path.length && ['read', 'write', 'web', 'bash'].includes(a.state);
+  const sit = !a.path.length && ['read', 'write'].includes(a.state);
+  const frame = a.path.length ? 1 + (Math.floor(t / 140) % 2) : 0;
+  const prop = a.path.length ? '' : a.state === 'idle' ? 'mug' : ['think', 'talk', 'agent'].includes(a.state) ? 'tablet' : '';
+  const img = sprite(a.look, a.dir >= 2 ? 'front' : 'back', frame, prop, sit);
+  ctx.fillStyle = 'rgba(15,42,82,.25)'; ctx.beginPath(); ctx.ellipse(x, y, 8, 3.5, 0, 0, Math.PI * 2); ctx.fill();
+  const typing = working && sit && Math.floor(t / 180) % 2 ? 1 : 0;      // tiny bob while typing
+  const bob = a.path.length ? (frame === 1 ? 1 : 0) : 0;
+  ctx.save();
+  ctx.translate(Math.round(x), 0);
+  if (a.flip) ctx.scale(-1, 1);
+  ctx.drawImage(img, -SW / 2, Math.round(y) - SH + 1 + (sit ? 3 : 0) - bob - typing);
+  ctx.restore();
+  a.sx = x; a.sy = y; a.top = y - SH + (sit ? 3 : 0);
 }
 function drawTags(a, t) {
   const { sx: x, sy: y } = a;
-  const name = `${a.kind === 'codex' ? 'Codex' : 'Claude'} · ${a.project.slice(0, 16)}`;
+  const codex = a.kind === 'codex';
+  const name = `${codex ? '>_ Codex' : '✳ Claude'} · ${a.project.slice(0, 16)}`;
   ctx.font = '600 9px system-ui'; const w = ctx.measureText(name).width + 10;
-  rect(x - w / 2, y + 4, w, 13, a.kind === 'codex' ? 'rgba(43,47,58,.92)' : 'rgba(31,95,191,.92)');
+  rect(x - w / 2, y + 4, w, 13, codex ? 'rgba(28,31,38,.95)' : 'rgba(217,119,87,.96)');
+  rect(x - w / 2, y + 16, w, 1, codex ? '#3ddc97' : '#8a3a1f');
   ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.fillText(name, x, y + 13.5);
-  const bx = x + 11, by = y - 12 * P - 9 + Math.sin(t / 300) * 1.2;
+  const bx = x + 11, by = a.top - 6 + Math.sin(t / 300) * 1.2;
   ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(bx, by, 8, 0, Math.PI * 2); ctx.fill();
   ctx.strokeStyle = colors[a.state] || '#7894a9'; ctx.lineWidth = 1.5; ctx.stroke();
   ctx.font = '9px system-ui'; ctx.fillText(icons[a.state] || '•', bx, by + 3); ctx.textAlign = 'start';
@@ -349,7 +435,7 @@ function frame(t) {
     else { a.dir = 2; a.flip = false; }
   }
   drawScene(t);
-  if(!agents.size){ctx.font='bold 12px system-ui';const m='รอ Claude / Codex เข้างาน หรือกด DEMO',w=ctx.measureText(m).width+20;
+  if(!agents.size){ctx.font='bold 12px Arial, "Noto Sans Thai", sans-serif';const m='รอ Claude / Codex เข้างาน หรือกด DEMO',w=ctx.measureText(m).width+20;
     const [mx,my]=iso(16,11);rect(mx-w/2,my-12,w,22,'rgba(15,42,82,.88)');ctx.fillStyle='#fff';ctx.textAlign='center';ctx.fillText(m,mx,my+3);ctx.textAlign='start';}
   requestAnimationFrame(frame);
 }
