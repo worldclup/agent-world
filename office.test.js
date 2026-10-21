@@ -31,6 +31,12 @@ vm.runInContext(`
     }
   }
   setBuilding('modern');
+  openSettings();
+  for(const [style,expected] of Object.entries(MATCHING_BACKGROUNDS)) {
+    document.getElementById('building-'+style).onchange();
+    if(buildingTheme!==style || backgroundTheme!==expected || backgroundSelect.value!==expected) throw new Error('Building must select its matching background');
+  }
+  cancelSettings();
   activityEntries.push({time:300,sequence:0},{time:100,sequence:1},{time:200,sequence:2});
   if(sortedActivities('newest').map(e=>e.time).join(',')!=='300,200,100') throw new Error('Newest-first order failed');
   if(sortedActivities('oldest').map(e=>e.time).join(',')!=='100,200,300') throw new Error('Oldest-first order failed');
