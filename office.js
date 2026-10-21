@@ -44,29 +44,36 @@ function object(x, y, w, d, kind, opt = {}) {
 const deco = (x, y, kind, opt = {}) => objects.push({ x, y, w: 1, d: 1, kind, ...opt, depth: x + y + .3 });
 
 const AREAS = [
-  { x: 1, y: 1, w: 10, h: 7, floor: 'wood', title: 'LOUNGE' },
+  { x: 1, y: 1, w: 10, h: 7, floor: 'carpet', title: 'MEETING' },
+  { x: 1, y: 17, w: 10, h: 4, floor: 'wood', title: 'QUIET ROOM' },
   { x: 13, y: 1, w: 18, h: 8, floor: 'tile', title: 'WORKSPACE' },
-  { x: 1, y: 12, w: 10, h: 9, floor: 'carpet', title: 'MEETING' },
+  { x: 1, y: 12, w: 10, h: 5, floor: 'wood', title: 'LOUNGE' },
   { x: 20, y: 13, w: 11, h: 8, floor: 'dark', title: 'SERVER' },
 ];
 
 // lounge
-object(2, 1, 4, 1, 'sofa'); object(3, 3, 2, 1, 'coffeeTable'); object(7, 3, 1, 1, 'armchair'); object(8, 1, 3, 1, 'coffeeBar');
-const barSeats = [[8,2],[9,2],[10,2]];
+object(2, 12, 4, 1, 'sofa'); object(3, 14, 2, 1, 'coffeeTable'); object(7, 14, 1, 1, 'armchair'); object(8, 12, 3, 1, 'coffeeBar');
+const barSeats = [[8,13],[9,13],[10,13]];
 barSeats.forEach(([x,y]) => deco(x, y, 'barStool'));
+const napSpots = [[3,19],[7,19]];
+napSpots.forEach(([x,y]) => deco(x,y,'daybed'));
+// Quiet room below the lounge; leave a two-tile doorway at x=7..8.
+object(1,17,6,1,'restWall');
+object(9,17,2,1,'restWall');
+object(10,17,1,4,'restWall');
 object(1, 1, 1, 1, 'plant'); object(1, 7, 1, 1, 'plant');
-// soft dividers: planters + glass partitions
-object(11, 1, 1, 3, 'planter'); object(11, 5, 1, 3, 'planter');
-object(2, 12, 3, 1, 'planter'); object(7, 12, 3, 1, 'planter');
-object(19, 13, 1, 3, 'glass'); object(19, 17, 1, 4, 'glass');
-object(20, 12, 4, 1, 'glass'); object(27, 12, 4, 1, 'glass');
+// Clear glass partitions around the meeting area, with open walkways between panels.
+object(11, 1, 1, 7, 'glass', { edge:true });
+object(1, 8, 4, 1, 'glass', { edge:true }); object(7, 8, 4, 1, 'glass', { edge:true });
+object(20, 13, 1, 3, 'glass', { edge:true }); object(20, 17, 1, 4, 'glass', { edge:true });
+object(20, 13, 4, 1, 'glass', { edge:true }); object(27, 13, 4, 1, 'glass', { edge:true });
 // workspace
 for (const y of [2, 6]) for (const x of [14, 17, 20, 23]) { object(x, y, 2, 1, 'desk'); deco(x, y + 1, 'chair'); deco(x + 1, y + 1, 'chair'); }
 object(30, 1, 1, 1, 'plant'); object(26, 7, 1, 1, 'plant');
 // meeting
-object(4, 15, 4, 2, 'table');
-[[3, 15], [3, 16], [8, 15], [8, 16], [5, 14], [6, 14], [5, 17], [6, 17]].forEach(([x, y]) => deco(x, y, 'chair'));
-object(1, 20, 1, 1, 'plant'); object(10, 20, 1, 1, 'plant');
+object(4, 3, 4, 2, 'table');
+[[3, 3], [3, 4], [8, 3], [8, 4], [5, 2], [6, 2], [5, 5], [6, 5]].forEach(([x, y]) => deco(x, y, 'chair'));
+object(1, 20, 1, 1, 'plant'); object(11, 20, 1, 1, 'plant');
 // server
 for (const y of [15, 18]) for (const x of [22, 24, 26, 28]) object(x, y, 1, 1, 'rack');
 object(30, 20, 1, 1, 'plant');
@@ -76,7 +83,7 @@ object(13, 20, 1, 1, 'plant'); object(18, 20, 1, 1, 'plant');
 const zones = {
   read: [[14,3],[17,3],[20,3],[23,3]], write: [[14,7],[17,7],[20,7],[23,7]],
   web: [[27,3],[29,3]], bash: [[22,19],[24,19],[26,19],[28,19]],
-  think: [[5,14],[6,17],[3,15],[8,16]], idle: [[2,3],[5,3],[3,5],[6,5]],
+  think: [[5,2],[6,5],[3,3],[8,4]], idle: [[2,14],[5,14],[3,16],[6,16]],
 };
 zones.talk = zones.think; zones.agent = zones.think;
 const labels = { read:'อ่าน / ค้นหา', write:'แก้ไขไฟล์', web:'ค้นเว็บ', bash:'รันคำสั่ง', think:'กำลังคิด', talk:'กำลังตอบ', agent:'ประสานงาน', idle:'พักผ่อน' };
@@ -109,7 +116,10 @@ function apply(ev) {
   if (!a && !ev.sid.startsWith('demo-')) a = [...agents.values()].find(a => a.resident && a.kind === kind && !a.sessionSid);
   if (!a) { const id = `${kind}:${ev.sid}`; a = { sid:id, x:15, y:21, dir:3, path:[], hue:agents.size % 5 }; agents.set(id,a); }
   a.sessionSid = ev.sid;
+  const wasIdle = a.state === 'idle';
   Object.assign(a, { kind:ev.kind || 'claude', project:String(ev.project || 'Agent'), state:ev.state, text:String(ev.text || ''), last:Date.now() });
+  if (a.state === 'idle') { if (!wasIdle) a.idleSince = Date.now(); }
+  else { a.idleSince = null; a.sleepSpot = null; a.sleeping = false; }
   a.target = null;
   a.roamTarget = null;
   const li = document.createElement('li'), b = document.createElement('b');
@@ -122,7 +132,7 @@ function addResidents() {
   ['codex', 'claude'].forEach((kind, i) => {
     const sid = `resident:${kind}`;
     agents.set(sid, { sid, kind, resident:true, sessionSid:null, project:'ประจำ Office', state:'idle', text:'ยังไม่พบกิจกรรม', last:0,
-      x:3+i*3, y:6, dir:2, path:[], target:null, nextRoam:0 });
+      x:3+i*3, y:16, dir:2, path:[], target:null, nextRoam:0, idleSince:Date.now() });
   });
 }
 
@@ -130,13 +140,23 @@ function expireAgents(now) {
   for (const [sid, a] of agents) if (now - a.last > 15*60e3) {
     if (!a.resident) { agents.delete(sid); continue; }
     if (a.sessionSid) {
-      Object.assign(a, { sessionSid:null, project:'ประจำ Office', state:'idle', text:'ไม่พบกิจกรรมล่าสุด', target:null, roamTarget:null });
+      Object.assign(a, { sessionSid:null, project:'ประจำ Office', state:'idle', text:'ไม่พบกิจกรรมล่าสุด', target:null, roamTarget:null, idleSince:a.state === 'idle' ? a.idleSince : now });
     }
   }
 }
 
-const roamSpots = [[2,3],[5,3],[3,5],[6,5],[8,6],[9,4],[3,6],[6,7], ...barSeats];
+const roamSpots = [[2,14],[5,14],[3,16],[6,16],[8,16],[9,15],[2,16], ...barSeats];
+function sleepTarget(a, now, night) {
+  if (!night || a.state !== 'idle' || now - (a.idleSince ?? now) < 3*60e3) {
+    a.sleepSpot = null; a.sleeping = false; return null;
+  }
+  if (!a.sleepSpot) a.sleepSpot = napSpots.find(p => ![...agents.values()].some(other => other !== a && other.sleepSpot && key(...other.sleepSpot) === key(...p))) || null;
+  a.sleeping = !!a.sleepSpot && !a.path.length && a.x === a.sleepSpot[0] && a.y === a.sleepSpot[1];
+  return a.sleepSpot;
+}
 function chooseTarget(a, assigned, now) {
+  const nap = sleepTarget(a,Date.now(),lighting.label === 'กลางคืน');
+  if (nap) return nap;
   if (a.state !== 'idle') return assigned;
   if (!a.roamTarget || (!a.path.length && now >= a.nextRoam)) {
     const candidates = roamSpots.filter(([x,y]) => !blocked.has(key(x,y)) && (x !== a.x || y !== a.y) &&
@@ -284,7 +304,7 @@ function drawRoom(t) {
     poly(quad(x, y, 1, 1), floorColor(area && area.floor, x, y));
   }
   poly(quad(15, 21, 2, 1), C.blue); poly(quad(15.2, 21.15, 1.6, .7), C.blue2);   // entry mat
-  poly(quad(2, 2.6, 7, 3.6), '#9fb6dc'); poly(quad(2.2, 2.8, 6.6, 3.2), '#cfdcf1');   // lounge rug
+  poly(quad(2, 13.2, 7, 3.2), '#9fb6dc'); poly(quad(2.2, 13.4, 6.6, 2.8), '#cfdcf1');   // lounge rug
   // floor edge (gives the slab thickness)
   poly([iso(1, 21), iso(31, 21), up(iso(31, 21), -6), up(iso(1, 21), -6)], '#b9c9e0');
   poly([iso(31, 1), iso(31, 21), up(iso(31, 21), -6), up(iso(31, 1), -6)], '#cbd8ea');
@@ -301,7 +321,7 @@ function drawRoom(t) {
     wallQuad(side, a, b, 22, 60, C.navy); wallQuad(side, a + .15, b - .15, 24, 58, C.sky); wallQuad(side, a + .15, b - .15, 44, 58, C.sky2);
     for (let m = a + 1; m < b; m++) wallQuad(side, m - .05, m + .05, 24, 58, C.navy);
   };
-  win('r', 2, 5); win('r', 6, 9); win('r', 13, 15); win('l', 3, 6); win('l', 7, 10);
+  win('r', 2, 5); win('r', 6, 9); win('r', 13, 15); win('l', 13, 16);
   // company logo
   wallQuad('r', 16, 25.8, 34, 60, C.navy); wallQuad('r', 16.3, 17.6, 38, 56, C.blue); wallQuad('r', 16.65, 17.25, 41, 53, C.white);
   wallText('r', 18, 42, 'DHITETA AI', 'bold 8px "Press Start 2P", monospace', '#fff');
@@ -310,10 +330,10 @@ function drawRoom(t) {
   wallQuad('r', 26.6, 30.4, 21, 49, (t / 700 | 0) % 2 ? '#2f7be0' : '#3d8bea');
   wallQuad('r', 27.4, 29.2, 27, 43, '#9fd0f5'); wallQuad('r', 27.9, 28.7, 31, 39, '#5aa0f0');
   // meeting: TV + whiteboard on the left wall
-  wallQuad('l', 13.6, 17.4, 20, 46, C.navy); wallQuad('l', 13.9, 17.1, 23, 43, (t / 900 | 0) % 2 ? '#3d8bea' : '#5aa0f0');
-  wallText('l', 14.3, 30, 'Q4 PLAN', 'bold 7px "Press Start 2P", monospace', '#fff');
-  wallQuad('l', 18, 20.6, 18, 46, '#c9d7ec'); wallQuad('l', 18.15, 20.45, 20, 44, '#fff');
-  wallQuad('l', 18.5, 19.8, 36, 37, C.blue); wallQuad('l', 18.5, 20.2, 30, 31, C.orange); wallQuad('l', 18.5, 19.4, 24, 25, C.blue);
+  wallQuad('l', 2, 5.8, 20, 46, C.navy); wallQuad('l', 2.3, 5.5, 23, 43, (t / 900 | 0) % 2 ? '#3d8bea' : '#5aa0f0');
+  wallText('l', 2.7, 30, 'Q4 PLAN', 'bold 7px "Press Start 2P", monospace', '#fff');
+  wallQuad('l', 6.3, 8.9, 18, 46, '#c9d7ec'); wallQuad('l', 6.45, 8.75, 20, 44, '#fff');
+  wallQuad('l', 6.8, 8.1, 36, 37, C.blue); wallQuad('l', 6.8, 8.5, 30, 31, C.orange); wallQuad('l', 6.8, 7.7, 24, 25, C.blue);
   // clock
   const [cx, cy] = wallPt('r', 11.5, 46);
   ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.ellipse(cx, cy, 6, 7, 0, 0, Math.PI * 2); ctx.fill();
@@ -333,6 +353,20 @@ function plantTop(p, s = 1) {
 function drawObject(o, t) {
   const { x, y, w, d } = o;
   switch (o.kind) {
+    case 'restWall': {
+      const h = 29;
+      const thin = w > d ? [x,y+.25,w,.2] : [x+w-.2,y+.25,.2,d-.25];
+      box(...thin,h,'#c5cee0','#a9b8d0','#8299b8');
+      box(...thin,3,C.navy,C.blue3,C.navy,h);
+      break;
+    }
+    case 'daybed':
+      shadowQ(x,y,2,1);
+      box(x,y,2,1,5,C.wood,C.woodDark,'#b07f4a');
+      box(x+.05,y+.05,1.9,.9,3,'#c4d7ef','#a6bedf','#8da8cd',5);
+      box(x+.12,y+.12,.45,.72,2,'#fff','#e9eef6','#dfe7f2',8);
+      box(x+.8,y+.08,1.1,.84,1,C.blue2,C.blue3,C.blue,8);
+      break;
     case 'sofa':
       shadowQ(x, y, w, d);
       box(x, y + .2, w, .8, 7, C.blue2, C.blue3, C.blue3);
@@ -386,7 +420,8 @@ function drawObject(o, t) {
       break;
     }
     case 'glass': {
-      const thin = w > d ? [x, y + .45, w, .1] : [x + .45, y, .1, d];
+      const offset = o.edge ? 0 : .45;
+      const thin = w > d ? [x, y + offset, w + (o.edge ? .1 : 0), .1] : [x + offset, y, .1, d];
       box(...thin, 30, C.glassTop, C.glass, C.glass);
       box(...thin, 3, C.navy, C.blue3, C.blue3);
       box(thin[0], thin[1], thin[2], thin[3], 2, C.navy, C.navy, C.navy, 30);
@@ -528,6 +563,14 @@ function drawAgent(a, t) {
   const typing = working && sit && Math.floor(t / 180) % 2 ? 1 : 0;      // tiny bob while typing
   const bob = a.path.length ? (frame === 1 ? 1 : 0) : 0;
   ctx.save();
+  if (a.sleeping) {
+    ctx.translate(Math.round(x),Math.round(y)-9);
+    ctx.rotate(-Math.PI/2);
+    ctx.drawImage(img,-SW/2,-SH/2);
+    ctx.restore();
+    a.sx=x;a.sy=y;a.top=y-22;
+    return;
+  }
   ctx.translate(Math.round(x), 0);
   if (a.flip) ctx.scale(-1, 1);
   ctx.drawImage(img, -SW / 2, Math.round(y) - SH + 1 + (atBar ? -5 : sit ? 3 : 0) - bob - typing);
@@ -547,7 +590,8 @@ function drawTags(a, t) {
   ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(bx, by, 8, 0, Math.PI * 2); ctx.fill();
   ctx.strokeStyle = colors[a.state] || '#7894a9'; ctx.lineWidth = 1.5; ctx.stroke();
   const icon = iconImages[icons[a.state] || 'coffee'];
-  if (icon.complete && icon.naturalWidth) ctx.drawImage(icon, bx - 6, by - 6, 12, 12);
+  if (a.sleeping) { ctx.font='bold 8px monospace';ctx.fillStyle='#7958d1';ctx.fillText('zZ',bx,by+3); }
+  else if (icon.complete && icon.naturalWidth) ctx.drawImage(icon, bx - 6, by - 6, 12, 12);
   ctx.textAlign = 'start';
 }
 
@@ -570,7 +614,7 @@ function updateTooltip() {
   if (!a) return;
   document.getElementById('agent-tooltip-name').textContent = `${a.kind === 'codex' ? 'Codex' : 'Claude'} · ${a.project}`;
   document.getElementById('agent-tooltip-state').textContent = a.resident && !a.sessionSid ? 'สมาชิกประจำ · ยังไม่เชื่อม session' : `สถานะ: ${labels[a.state] || 'ทำงาน'} (จากกิจกรรมล่าสุด)`;
-  document.getElementById('agent-tooltip-task').textContent = a.text || (a.state === 'idle' ? 'เดินเล่น / พักใน Lounge' : 'กำลังทำงาน');
+  document.getElementById('agent-tooltip-task').textContent = a.sleeping ? 'นอนพัก · ไม่มีงาน (ภาพเคลื่อนไหวเท่านั้น)' : a.sleepSpot ? 'กำลังเดินไปพักงีบ' : a.text || (a.state === 'idle' ? 'เดินเล่น / พักใน Lounge' : 'กำลังทำงาน');
   tooltip.style.left = `${Math.max(8,Math.min(pointer.x+14,window.innerWidth-tooltip.offsetWidth-8))}px`;
   tooltip.style.top = `${Math.max(8,Math.min(pointer.y+14,window.innerHeight-tooltip.offsetHeight-8))}px`;
 }
