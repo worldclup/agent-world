@@ -3,10 +3,17 @@ const vm = require('node:vm');
 const assert = require('node:assert/strict');
 const noop = () => {};
 const elements = new Map();
-const document = { getElementById(id) { if (!elements.has(id)) elements.set(id, { getContext: () => ({}), prepend: noop, append: noop, children: [] }); return elements.get(id); }, createElement: () => ({ append:noop }) };
+const document = { getElementById(id) { if (!elements.has(id)) elements.set(id, { getContext: () => ({}), prepend: noop, append: noop, replaceChildren: noop, children: [] }); return elements.get(id); }, createElement: () => ({ append:noop }) };
 const context = vm.createContext({ document, Image:class {}, EventSource:class {}, requestAnimationFrame:noop, setTimeout, clearTimeout });
 vm.runInContext(fs.readFileSync('office.js','utf8'),context);
 vm.runInContext(`
+  activityEntries.push({time:300,sequence:0},{time:100,sequence:1},{time:200,sequence:2});
+  if(sortedActivities('newest').map(e=>e.time).join(',')!=='300,200,100') throw new Error('Newest-first order failed');
+  if(sortedActivities('oldest').map(e=>e.time).join(',')!=='100,200,300') throw new Error('Oldest-first order failed');
+  activityEntries.length=0;
+  if(activitySummary('think','# Context from my IDE setup:').includes('IDE')) throw new Error('IDE metadata leaked into activity summary');
+  if(activitySummary('write','text(await tools.exec_command({cmd: "rg file"}))').includes('tools.')) throw new Error('Tool code must be collapsed into details');
+  if(activitySummary('talk','ปรับบอร์ดแล้วครับ')!=='ปรับบอร์ดแล้วครับ') throw new Error('Readable assistant text should remain visible');
   const night = lightingAt(new Date(2026,9,21,0,5));
   if(night.hour!==0 || night.daylight!==0 || night.time!=='00:05') throw new Error('Local midnight conversion failed');
   if(lightingAt(new Date(2026,9,21,12,0)).daylight!==1) throw new Error('Local noon must be daylight');
@@ -52,6 +59,9 @@ vm.runInContext(`
   if(!resident.sleeping) throw new Error('Agent must sleep on arrival');
   apply({sid:'wake',kind:'claude',state:'write',project:'Work'});
   if(resident.sleeping || resident.sleepSpot) throw new Error('New work must wake agent immediately');
+  apply({sid:'wake',kind:'claude',state:'bash',project:'Work'});
+  apply({sid:'demo-count',kind:'codex',state:'bash',project:'Demo'});
+  if(runningCommands()!==1) throw new Error('Command display must count live sessions, not demos');
 `,context);
 assert.ok(elements.has('log'));
 console.log('PASS: all zone destinations reachable, paths avoid walls/furniture, live event creates agent.');

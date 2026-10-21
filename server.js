@@ -111,13 +111,14 @@ function readNew(file, handler) {
 }
 
 // Skip existing history: start every known file at its current end.
-function walk(dir, handler) {
+function walk(dir, handler, initial = true) {
   let items = [];
   try { items = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
   for (const d of items) {
     const p = path.join(dir, d.name);
-    if (d.isDirectory()) walk(p, handler);
+    if (d.isDirectory()) walk(p, handler, initial);
     else if (p.endsWith('.jsonl')) {
+      if (!initial && offsets.has(p)) { readNew(p, handler); continue; }
       const stat = fs.statSync(p);
       offsets.set(p, stat.size);
       // Restore only recent activity, without replaying the full conversation history.
@@ -137,6 +138,15 @@ function walk(dir, handler) {
     }
   }
 }
+
+// File-system notifications can be missed by recursive watchers on session directories.
+// Polling also discovers new date folders and session files without replaying old history.
+setInterval(() => {
+  for (const [root, handler] of [[ROOT, handle], [CODEX_ROOT, handleCodex]]) {
+    try { walk(root, handler, false); }
+    catch (err) { console.warn('Session polling failed:', err.message); }
+  }
+}, 2000).unref();
 
 for (const [root, handler] of [[ROOT, handle], [CODEX_ROOT, handleCodex]]) {
   if (!fs.existsSync(root)) continue;

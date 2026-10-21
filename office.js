@@ -55,8 +55,8 @@ const AREAS = [
 object(2, 12, 4, 1, 'sofa'); object(3, 14, 2, 1, 'coffeeTable'); object(7, 14, 1, 1, 'armchair'); object(8, 12, 3, 1, 'coffeeBar');
 const barSeats = [[8,13],[9,13],[10,13]];
 barSeats.forEach(([x,y]) => deco(x, y, 'barStool'));
-const napSpots = [[3,19],[7,19]];
-napSpots.forEach(([x,y]) => deco(x,y,'daybed'));
+const napSpots = [[3,19],[7,19],[4,19],[8,19]];
+[[3,19],[7,19]].forEach(([x,y]) => deco(x,y,'daybed'));
 // Quiet room below the lounge; leave a two-tile doorway at x=7..8.
 object(1,17,6,1,'restWall');
 object(9,17,2,1,'restWall');
@@ -65,7 +65,7 @@ object(1, 1, 1, 1, 'plant'); object(1, 7, 1, 1, 'plant');
 // Clear glass partitions around the meeting area, with open walkways between panels.
 object(11, 1, 1, 7, 'glass', { edge:true });
 object(1, 8, 4, 1, 'glass', { edge:true }); object(7, 8, 4, 1, 'glass', { edge:true });
-object(20, 13, 1, 3, 'glass', { edge:true }); object(20, 17, 1, 4, 'glass', { edge:true });
+object(20, 13, 1, 8, 'glass', { edge:true });
 object(20, 13, 4, 1, 'glass', { edge:true }); object(27, 13, 4, 1, 'glass', { edge:true });
 // workspace
 for (const y of [2, 6]) for (const x of [14, 17, 20, 23]) { object(x, y, 2, 1, 'desk'); deco(x, y + 1, 'chair'); deco(x + 1, y + 1, 'chair'); }
@@ -75,14 +75,17 @@ object(4, 3, 4, 2, 'table');
 [[3, 3], [3, 4], [8, 3], [8, 4], [5, 2], [6, 2], [5, 5], [6, 5]].forEach(([x, y]) => deco(x, y, 'chair'));
 object(1, 20, 1, 1, 'plant'); object(11, 20, 1, 1, 'plant');
 // server
-for (const y of [15, 18]) for (const x of [22, 24, 26, 28]) object(x, y, 1, 1, 'rack');
+for (const y of [15,17]) for (const x of [22,24]) object(x,y,1,1,'rack');
+object(22,19,3,1,'controlDesk');
+[22,24].forEach(x => deco(x,20,'chair'));
+object(29,18,1,1,'serverStatus');
 object(30, 20, 1, 1, 'plant');
 // entry
 object(13, 20, 1, 1, 'plant'); object(18, 20, 1, 1, 'plant');
 
 const zones = {
   read: [[14,3],[17,3],[20,3],[23,3]], write: [[14,7],[17,7],[20,7],[23,7]],
-  web: [[27,3],[29,3]], bash: [[22,19],[24,19],[26,19],[28,19]],
+  web: [[27,3],[29,3]], bash: [[22,20],[24,20],[25,15],[25,17]],
   think: [[5,2],[6,5],[3,3],[8,4]], idle: [[2,14],[5,14],[3,16],[6,16]],
 };
 zones.talk = zones.think; zones.agent = zones.think;
@@ -92,6 +95,7 @@ const iconImages = Object.fromEntries([...new Set(Object.values(icons))].map(nam
   const img = new Image(); img.src = `/assets/icons/${name}.svg`; return [name, img];
 }));
 const colors = { read:'#2586b6', write:'#7958d1', web:'#ca8a18', bash:'#21865b', think:'#bd5692', talk:'#bd5692', agent:'#148a98', idle:'#b87436' };
+const runningCommands = () => [...agents.values()].filter(a => a.state === 'bash' && a.sessionSid && !a.sessionSid.startsWith('demo-') && Date.now()-a.last <= 15*60e3).length;
 
 function route(from, to) {
   const queue = [from], prev = new Map([[key(...from), null]]);
@@ -109,6 +113,49 @@ function route(from, to) {
   }
   return [];
 }
+function activitySummary(state, raw) {
+  const text = String(raw || '').trim();
+  if (state === 'idle') return 'จบงานแล้ว กำลังพักผ่อน';
+  const technical = /Context from my IDE|#.*Active File|tools\.|exec_command|apply_patch|"cmd"|^\s*(?:const |await |\{|# Context)/.test(text);
+  if (technical || !text) return ({ think:'กำลังพิจารณาคำขอของคุณ', talk:'กำลังอธิบายผลการทำงาน', read:'กำลังตรวจสอบไฟล์และข้อมูลในโปรเจกต์', write:'กำลังปรับปรุงไฟล์ในโปรเจกต์', bash:'กำลังเรียกใช้คำสั่งหรือเครื่องมือ', web:'กำลังค้นหาข้อมูลบนเว็บ', agent:'กำลังประสานงานกับ Agent' })[state] || 'กำลังทำงาน';
+  if (state === 'think') return `รับคำขอ: ${text}`;
+  if (['read','write'].includes(state) && /[\\/]|\.\w{1,5}$/.test(text)) return `${state==='read'?'ตรวจสอบ':'แก้ไข'}ไฟล์: ${text}`;
+  if (state === 'bash') return 'กำลังเรียกใช้คำสั่งหรือเครื่องมือ';
+  return text;
+}
+const activityEntries = [];
+let activitySequence = 0;
+function sortedActivities(order) {
+  return [...activityEntries].sort((a,b) => (order === 'oldest' ? 1 : -1) * (a.time-b.time || a.sequence-b.sequence));
+}
+function renderActivities() {
+  const order=document.getElementById('activity-sort').value;
+  document.getElementById('log').replaceChildren(...sortedActivities(order).map(entry=>entry.node));
+}
+document.getElementById('activity-sort').onchange=()=>{renderActivities();document.getElementById('log').scrollTop=0;};
+function addActivity(a, ev) {
+  const li = document.createElement('li');li.className=`activity activity-${a.state}`;
+  const head=document.createElement('div');head.className='activity-head';
+  const name=document.createElement('b');name.className=a.kind==='codex'?'agent-codex':'agent-claude';name.textContent=a.kind==='codex'?'Codex':'Claude';
+  const identity=document.createElement('div');identity.className='activity-identity';
+  const project=document.createElement('span');project.className='activity-project';project.textContent=`{ ${a.project} }`;
+  identity.append(name,project);
+  const time=document.createElement('time');time.textContent=new Date(ev.t || Date.now()).toLocaleTimeString('en-GB',{hour12:false});
+  head.append(identity,time);
+  const badge=document.createElement('span');badge.className='activity-badge';
+  const icon=document.createElement('img');icon.src=`/assets/icons/${icons[a.state] || 'message'}.svg`;icon.alt='';
+  badge.append(icon,labels[a.state] || 'ทำงาน');
+  const summary=document.createElement('p');summary.textContent=activitySummary(a.state,a.text);
+  li.append(head,badge,summary);
+  if(a.text && summary.textContent!==a.text) {
+    const details=document.createElement('details'), toggle=document.createElement('summary'), raw=document.createElement('pre');
+    toggle.textContent='รายละเอียด';raw.textContent=a.text;details.append(toggle,raw);li.append(details);
+  }
+  activityEntries.push({ node:li, time:Number.isFinite(ev.t)?ev.t:Date.now(), sequence:activitySequence++ });
+  activityEntries.sort((a,b)=>a.time-b.time || a.sequence-b.sequence);
+  if(activityEntries.length>60)activityEntries.splice(0,activityEntries.length-60);
+  renderActivities();
+}
 function apply(ev) {
   if (!ev || typeof ev.sid !== 'string') return;
   const kind = ev.kind || 'claude';
@@ -122,10 +169,7 @@ function apply(ev) {
   else { a.idleSince = null; a.sleepSpot = null; a.sleeping = false; }
   a.target = null;
   a.roamTarget = null;
-  const li = document.createElement('li'), b = document.createElement('b');
-  b.textContent = `${a.kind === 'codex' ? 'Codex' : 'Claude'} · ${a.project} `;
-  li.append(new Date().toLocaleTimeString()+' ', b, `${labels[a.state] || 'ทำงาน'}: ${a.text}`);
-  const log = document.getElementById('log'); log.prepend(li); while (log.children.length > 60) log.lastChild.remove();
+  addActivity(a,ev);
 }
 
 function addResidents() {
@@ -309,6 +353,13 @@ function drawRoom(t) {
   poly([iso(1, 21), iso(31, 21), up(iso(31, 21), -6), up(iso(1, 21), -6)], '#b9c9e0');
   poly([iso(31, 1), iso(31, 21), up(iso(31, 21), -6), up(iso(31, 1), -6)], '#cbd8ea');
   AREAS.forEach(a => floorText(a.x + .4, a.y + a.h - .4, a.title));
+  // Recessed cable trays stay walkable and connect the rack rows to the control desk.
+  for(const x of [22,24]) {
+    poly(quad(x+.42,14,.16,4),'#142037');
+    poly(quad(x+.47,14,.05,4),'#467390');
+  }
+  poly(quad(21,18.4,4,.2),'#142037');poly(quad(21,18.47,4,.06),'#467390');
+  poly(quad(21,16.4,.16,3),'#142037');
 
   // walls
   wallQuad('l', 1, 21, 0, WALL, C.wallSide); wallQuad('r', 1, 31, 0, WALL, C.wall);
@@ -332,8 +383,8 @@ function drawRoom(t) {
   // meeting: TV + whiteboard on the left wall
   wallQuad('l', 2, 5.8, 20, 46, C.navy); wallQuad('l', 2.3, 5.5, 23, 43, (t / 900 | 0) % 2 ? '#3d8bea' : '#5aa0f0');
   wallText('l', 2.7, 30, 'Q4 PLAN', 'bold 7px "Press Start 2P", monospace', '#fff');
-  wallQuad('l', 6.3, 8.9, 18, 46, '#c9d7ec'); wallQuad('l', 6.45, 8.75, 20, 44, '#fff');
-  wallQuad('l', 6.8, 8.1, 36, 37, C.blue); wallQuad('l', 6.8, 8.5, 30, 31, C.orange); wallQuad('l', 6.8, 7.7, 24, 25, C.blue);
+  wallQuad('l', 6.1, 7.8, 36, 57, '#c9d7ec'); wallQuad('l', 6.23, 7.67, 38, 55, '#fff');
+  wallQuad('l', 6.45, 7.3, 49, 50, C.blue); wallQuad('l', 6.45, 7.45, 45, 46, C.orange); wallQuad('l', 6.45, 7.05, 41, 42, C.blue);
   // clock
   const [cx, cy] = wallPt('r', 11.5, 46);
   ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.ellipse(cx, cy, 6, 7, 0, 0, Math.PI * 2); ctx.fill();
@@ -353,6 +404,27 @@ function plantTop(p, s = 1) {
 function drawObject(o, t) {
   const { x, y, w, d } = o;
   switch (o.kind) {
+    case 'controlDesk':
+      shadowQ(x,y,w,d);
+      box(x,y,w,d,10,'#d7e4f2','#8ba1bd','#6b83a5');
+      for(let i=0;i<2;i++) {
+        const mx=x+.1+i*2;
+        box(mx,y+.12,.85,.15,12,C.navy,'#243957','#142945',10);
+        const [sx,sy]=up(iso(mx,y+.27),12);
+        poly([[sx,sy],[sx+9,sy+4.5],[sx+9,sy-4],[sx,sy-8.5]],'#59c9bb');
+        poly(quad(mx+.1,y+.5,.65,.25),'#314860');
+      }
+      break;
+    case 'serverStatus': {
+      const [sx,sy]=iso(x+.5,y+1);
+      box(x+.4,y+.4,.2,.3,24,'#7086a5','#354d6b','#203754');
+      rect(sx-25,sy-47,50,26,C.navy);rect(sx-23,sy-45,46,22,'#11263b');
+      const count=runningCommands();
+      ctx.font='bold 6px "Pixelify Sans", sans-serif';ctx.fillStyle='#a8bed5';ctx.fillText('COMMANDS',sx-20,sy-37);
+      ctx.font='bold 10px "Pixelify Sans", sans-serif';ctx.fillStyle=count?'#75edb5':'#9ab0c8';ctx.fillText(String(count).padStart(2,'0'),sx-20,sy-26);
+      ctx.font='6px "Pixelify Sans", sans-serif';ctx.fillText(count?'ACTIVE':'STANDBY',sx-5,sy-26);
+      break;
+    }
     case 'restWall': {
       const h = 29;
       const thin = w > d ? [x,y+.25,w,.2] : [x+w-.2,y+.25,.2,d-.25];
@@ -362,10 +434,16 @@ function drawObject(o, t) {
     }
     case 'daybed':
       shadowQ(x,y,2,1);
-      box(x,y,2,1,5,C.wood,C.woodDark,'#b07f4a');
-      box(x+.05,y+.05,1.9,.9,3,'#c4d7ef','#a6bedf','#8da8cd',5);
-      box(x+.12,y+.12,.45,.72,2,'#fff','#e9eef6','#dfe7f2',8);
-      box(x+.8,y+.08,1.1,.84,1,C.blue2,C.blue3,C.blue,8);
+      for (const z of [5,27]) {
+        box(x,y,2,1,2,C.wood,C.woodDark,'#b07f4a',z-2);
+        box(x+.05,y+.05,1.9,.9,3,'#c4d7ef','#a6bedf','#8da8cd',z);
+        box(x+.12,y+.12,.45,.72,2,'#fff','#e9eef6','#dfe7f2',z+3);
+        box(x+.8,y+.08,1.1,.84,1,C.blue2,C.blue3,C.blue,z+3);
+      }
+      for (const [dx,dy] of [[0,0],[1.9,0],[0,.9],[1.9,.9]]) box(x+dx,y+dy,.1,.1,36,C.wood,C.woodDark,'#b07f4a');
+      box(x+.05,y,1.9,.08,3,C.wood,C.woodDark,'#b07f4a',33);
+      for (const dx of [1.5,1.9]) box(x+dx,y+1,.06,.06,29,C.wood,C.woodDark,'#b07f4a');
+      for (const z of [6,13,20,27]) box(x+1.5,y+1,.46,.06,1,C.wood,C.woodDark,'#b07f4a',z);
       break;
     case 'sofa':
       shadowQ(x, y, w, d);
@@ -453,13 +531,15 @@ function drawObject(o, t) {
       break;
     case 'rack': {
       shadowQ(x, y, w, d);
-      box(x + .05, y + .05, .9, .9, 46, '#3a4256', '#1d2333', '#2a3144');
+      box(x + .05, y + .05, .9, .9, 46, '#3a4256', '#2a3144', '#1d2333');
       for (let i = 0; i < 7; i++) {
         const v = 5 + i * 5.8;
-        poly([faceL(x + .05, y + .05, .9, .9, .1, v), faceL(x + .05, y + .05, .9, .9, .9, v), faceL(x + .05, y + .05, .9, .9, .9, v + 3.5), faceL(x + .05, y + .05, .9, .9, .1, v + 3.5)], '#0b0f18');
+        poly([faceR(x + .05, y + .05, .9, .9, .1, v), faceR(x + .05, y + .05, .9, .9, .9, v), faceR(x + .05, y + .05, .9, .9, .9, v + 3.5), faceR(x + .05, y + .05, .9, .9, .1, v + 3.5)], '#0b0f18');
         const on = Math.sin(t / 170 + i * 1.7 + x * 3 + y) > 0;
-        const [lx, ly] = faceL(x + .05, y + .05, .9, .9, .2, v + 2);
-        rect(lx, ly - 1, 2, 1, on ? '#4ade80' : '#14532d'); rect(lx + 3, ly + .5, 2, 1, on ? '#60a5fa' : '#1e3a8a');
+        const [lx, ly] = faceR(x + .05, y + .05, .9, .9, .25, v + 2);
+        const [rx, ry] = faceR(x + .05, y + .05, .9, .9, .65, v + 2);
+        rect(lx - 1, ly - 1, 1, 1, on ? '#4ade80' : '#14532d');
+        rect(rx - 1, ry - 1, 1, 1, on ? '#60a5fa' : '#1e3a8a');
       }
       break;
     }
@@ -551,11 +631,12 @@ function sprite(look, view, frame, prop, sit) {
 }
 
 function drawAgent(a, t) {
-  const [x, y] = iso(a.x + .5, a.y + .5);
+  const upperBunk = a.sleeping && [4,8].includes(a.x);
+  const [x, y] = iso(a.x + (upperBunk ? -.5 : .5), a.y + .5);
   a.look = a.look || lookFor(a.sid, a.kind);
   const working = !a.path.length && ['read', 'write', 'web', 'bash'].includes(a.state);
   const atBar = !a.path.length && a.state === 'idle' && barSeats.some(([sx,sy]) => a.x === sx && a.y === sy);
-  const sit = atBar || (!a.path.length && ['read', 'write'].includes(a.state));
+  const sit = atBar || (!a.path.length && (['read', 'write'].includes(a.state) || (a.state === 'bash' && a.y === 20 && a.x <= 24)));
   const frame = a.path.length ? 1 + (Math.floor(t / 140) % 2) : 0;
   const prop = a.path.length ? '' : a.state === 'idle' ? 'mug' : ['think', 'talk', 'agent'].includes(a.state) ? 'tablet' : '';
   const img = sprite(a.look, atBar ? 'front' : a.dir >= 2 ? 'front' : 'back', frame, prop, sit);
@@ -564,11 +645,11 @@ function drawAgent(a, t) {
   const bob = a.path.length ? (frame === 1 ? 1 : 0) : 0;
   ctx.save();
   if (a.sleeping) {
-    ctx.translate(Math.round(x),Math.round(y)-9);
+    ctx.translate(Math.round(x),Math.round(y)-(upperBunk ? 31 : 9));
     ctx.rotate(-Math.PI/2);
     ctx.drawImage(img,-SW/2,-SH/2);
     ctx.restore();
-    a.sx=x;a.sy=y;a.top=y-22;
+    a.sx=x;a.sy=y-(upperBunk ? 22 : 0);a.top=a.sy-22;
     return;
   }
   ctx.translate(Math.round(x), 0);
@@ -606,15 +687,17 @@ function hoveredAgent(x, y) {
 function updateTooltip() {
   if (!pointer) { tooltip.hidden = true; return; }
   const r = cv.getBoundingClientRect();
-  const x = (pointer.x-r.left-cv.clientLeft)/cv.clientWidth*VIEW.w+VIEW.x;
-  const y = (pointer.y-r.top-cv.clientTop)/cv.clientHeight*VIEW.h+VIEW.y;
+  const scale = Math.min(cv.clientWidth/VIEW.w,cv.clientHeight/VIEW.h);
+  const offsetX = (cv.clientWidth-VIEW.w*scale)/2, offsetY = (cv.clientHeight-VIEW.h*scale)/2;
+  const x = (pointer.x-r.left-cv.clientLeft-offsetX)/scale+VIEW.x;
+  const y = (pointer.y-r.top-cv.clientTop-offsetY)/scale+VIEW.y;
   const a = hoveredAgent(x,y);
   cv.style.cursor = a ? 'help' : 'default';
   tooltip.hidden = !a;
   if (!a) return;
   document.getElementById('agent-tooltip-name').textContent = `${a.kind === 'codex' ? 'Codex' : 'Claude'} · ${a.project}`;
   document.getElementById('agent-tooltip-state').textContent = a.resident && !a.sessionSid ? 'สมาชิกประจำ · ยังไม่เชื่อม session' : `สถานะ: ${labels[a.state] || 'ทำงาน'} (จากกิจกรรมล่าสุด)`;
-  document.getElementById('agent-tooltip-task').textContent = a.sleeping ? 'นอนพัก · ไม่มีงาน (ภาพเคลื่อนไหวเท่านั้น)' : a.sleepSpot ? 'กำลังเดินไปพักงีบ' : a.text || (a.state === 'idle' ? 'เดินเล่น / พักใน Lounge' : 'กำลังทำงาน');
+  document.getElementById('agent-tooltip-task').textContent = a.sleeping ? `นอนพัก · ${[4,8].includes(a.x) ? 'เตียงชั้นบน' : 'เตียงชั้นล่าง'} (ภาพเคลื่อนไหวเท่านั้น)` : a.sleepSpot ? 'กำลังเดินไปพักงีบ' : a.text || (a.state === 'idle' ? 'เดินเล่น / พักใน Lounge' : 'กำลังทำงาน');
   tooltip.style.left = `${Math.max(8,Math.min(pointer.x+14,window.innerWidth-tooltip.offsetWidth-8))}px`;
   tooltip.style.top = `${Math.max(8,Math.min(pointer.y+14,window.innerHeight-tooltip.offsetHeight-8))}px`;
 }

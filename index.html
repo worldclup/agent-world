@@ -17,13 +17,38 @@
   h1 span { color: var(--blue); }
   canvas { width: 100%; box-sizing: border-box; image-rendering: pixelated; border: 4px solid var(--blue); display: block; background: #dce8f7; box-shadow: 6px 6px 0 #080f20; }
   .workspace { display: grid; grid-template-columns: minmax(0, 1fr) clamp(240px, 20vw, 320px); gap: 18px; flex: 1; min-height: 0; }
-  .scene { position: relative; width: min(100%, calc((100svh - 100px) * 1.4865)); margin: auto; }
+  .scene { position: relative; width: 100%; height: 100%; min-width: 0; min-height: 0; margin: 0; }
   .sidebar { min-width: 0; min-height: 0; display: flex; flex-direction: column; padding: 14px; background: #223451; border: 2px solid var(--line); border-radius: 0; }
   .sidebar .bar { flex-shrink: 0; margin: 12px 0; }
   .activity-title { font: 600 15px/1.6 var(--font-pixel); letter-spacing: .2px; margin: 0 0 8px; }
+  .activity-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+  .activity-toolbar .activity-title { margin: 0; }
+  #activity-sort { min-width: 0; padding: 5px 6px; border: 1px solid var(--line); border-radius: 0; background: var(--panel); color: var(--navy); font: 11px var(--font-body); cursor: pointer; }
+  #activity-sort:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
   #log { flex: 1; min-height: 0; max-height: none; border-width: 1px; border-radius: 0; }
   #log li { white-space: normal; overflow-wrap: anywhere; font: 12px/1.8 var(--font-body); padding: 10px 12px; }
-  .scene canvas { height: auto; }
+  #log .activity { border-left: 3px solid var(--activity-color, #79a9ef); margin-bottom: 5px; background: #1d2e49; }
+  .activity-read { --activity-color: #62c7ee; }
+  .activity-write { --activity-color: #bb9aff; }
+  .activity-bash { --activity-color: #65d6a0; }
+  .activity-web { --activity-color: #f3c969; }
+  .activity-think, .activity-talk, .activity-agent { --activity-color: #e79dc7; }
+  .activity-idle { --activity-color: #b3bfcf; }
+  .activity-head { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+  #log .agent-codex { color: #8fc7ff; }
+  #log .agent-claude { color: #f0aa88; }
+  .activity-head time { color: var(--muted); font: 11px var(--font-pixel); }
+  .activity-identity { display: flex; align-items: baseline; gap: 5px; min-width: 0; white-space: nowrap; }
+  .activity-project { color: var(--muted); font-size: 10px; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .activity-head { margin-bottom: 6px; }
+  .activity-head time { flex-shrink: 0; }
+  .activity-badge { display: inline-flex; align-items: center; gap: 5px; padding: 1px 6px; background: #122239; color: var(--activity-color); font-size: 10px; border: 1px solid var(--activity-color); }
+  .activity-badge img { width: 14px; height: 14px; background: #edf3fb; }
+  .activity p { margin: 6px 0 0; line-height: 1.8; }
+  .activity details { margin-top: 6px; }
+  .activity details summary { cursor: pointer; font-size: 10px; color: #9ebce2; }
+  .activity pre { white-space: pre-wrap; overflow-wrap: anywhere; font: 11px/1.7 var(--font-body); color: var(--muted); margin: 5px 0 0; padding: 6px; background: #142238; }
+  .scene canvas { height: 100%; object-fit: contain; background: var(--bg); }
   .bar { display: flex; gap: 12px; align-items: center; margin: 16px 0 10px; flex-wrap: wrap; }
   button { font-family: 'Press Start 2P', var(--font-body); font-size: 10px; background: var(--blue); color: #fff; border: 3px solid var(--navy); padding: 8px 12px; cursor: pointer; }
   button:hover { background: #2f7be0; }
@@ -70,7 +95,7 @@
   @media (max-width: 800px) {
     main { height: auto; min-height: 100svh; }
     .workspace { grid-template-columns: 1fr; }
-    .scene { width: min(100%, calc((100svh - 110px) * 1.4865)); }
+    .scene { height: auto; aspect-ratio: 550 / 370; }
     .sidebar { height: 320px; }
   }
   @media (max-width: 600px) {
@@ -132,7 +157,13 @@
   </details>
     </div>
   <div class="bar"><span id="status">กำลังเชื่อมต่อ…</span></div>
-  <h2 class="activity-title">กิจกรรมล่าสุด</h2>
+  <div class="activity-toolbar">
+    <h2 class="activity-title">กิจกรรมล่าสุด</h2>
+    <select id="activity-sort" aria-label="เรียงลำดับกิจกรรม">
+      <option value="newest">ใหม่ไปเก่า</option>
+      <option value="oldest">เก่าไปใหม่</option>
+    </select>
+  </div>
   <ul id="log" aria-label="กิจกรรมล่าสุดของ Agent"></ul>
   </aside>
   </div>
