@@ -1,5 +1,7 @@
 # Office assets
 
+- `icons/*.svg`: Pixelarticons by Gerrit Halfmann, MIT license. Original SVGs, used for interface and agent status icons. License: `icons/LICENSE`. Source: https://github.com/halfmage/pixelarticons
+
 - `roguelikeCity_magenta.png`: Kenney, Roguelike Modern City. CC0 1.0. Original file unchanged. Despite the filename, this is the transparent atlas in the original archive.
   Source: https://kenney.nl/assets/roguelike-modern-city
   Download: https://opengameart.org/content/roguelike-modern-city-pack

@@ -19,7 +19,20 @@ vm.runInContext(`
     if(key(...prev)!==key(...target)) throw new Error('Wrong destination');
   }
   apply({sid:'test',state:'write',project:'<img src=x>',text:'hello'});
-  if(agents.size!==1) throw new Error('Event did not create agent');
+  if(agents.size!==2) throw new Error('First live session should reuse a resident');
+  const resident = agents.get('resident:claude');
+  if(resident.sessionSid!=='test' || resident.state!=='write') throw new Error('Resident not linked to live session');
+  apply({sid:'second',state:'think',kind:'claude',project:'Another'});
+  if(agents.size!==3) throw new Error('Second session should have its own agent');
+  expireAgents(Date.now()+16*60e3);
+  if(agents.size!==2 || resident.sessionSid || resident.state!=='idle') throw new Error('Resident should remain when activity expires');
+  for(const target of roamSpots) {
+    if(blocked.has(key(...target)) || !route([15,21],target).length) throw new Error('Unreachable roaming spot');
+  }
+  const target = chooseTarget(resident,zones.idle[0],100);
+  resident.x=target[0];resident.y=target[1];resident.path=[];
+  chooseTarget(resident,zones.idle[0],200);
+  if(!Number.isFinite(resident.nextRoam) || resident.nextRoam<=200) throw new Error('Idle agent must pause before roaming again');
 `,context);
 assert.ok(elements.has('log'));
 console.log('PASS: all zone destinations reachable, paths avoid walls/furniture, live event creates agent.');

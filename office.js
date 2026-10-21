@@ -62,7 +62,10 @@ const zones = {
 };
 zones.talk = zones.think; zones.agent = zones.think;
 const labels = { read:'อ่าน / ค้นหา', write:'แก้ไขไฟล์', web:'ค้นเว็บ', bash:'รันคำสั่ง', think:'กำลังคิด', talk:'กำลังตอบ', agent:'ประสานงาน', idle:'พักผ่อน' };
-const icons = { read:'📖', write:'💻', web:'🌐', bash:'⚙️', think:'💭', talk:'💬', agent:'👥', idle:'☕' };
+const icons = { read:'book', write:'edit', web:'globe', bash:'terminal', think:'message', talk:'message', agent:'users', idle:'coffee' };
+const iconImages = Object.fromEntries([...new Set(Object.values(icons))].map(name => {
+  const img = new Image(); img.src = `/assets/icons/${name}.svg`; return [name, img];
+}));
 const colors = { read:'#47a8d8', write:'#2f6fd6', web:'#dda043', bash:'#44b68e', think:'#ce79b0', talk:'#ce79b0', agent:'#ce79b0', idle:'#7894a9' };
 
 function route(from, to) {
@@ -83,14 +86,47 @@ function route(from, to) {
 }
 function apply(ev) {
   if (!ev || typeof ev.sid !== 'string') return;
-  let a = agents.get(ev.sid);
-  if (!a) { a = { sid:ev.sid, x:15, y:21, dir:3, path:[], hue:agents.size % 5 }; agents.set(ev.sid,a); }
+  const kind = ev.kind || 'claude';
+  let a = [...agents.values()].find(a => a.sessionSid === ev.sid && a.kind === kind);
+  if (!a && !ev.sid.startsWith('demo-')) a = [...agents.values()].find(a => a.resident && a.kind === kind && !a.sessionSid);
+  if (!a) { const id = `${kind}:${ev.sid}`; a = { sid:id, x:15, y:21, dir:3, path:[], hue:agents.size % 5 }; agents.set(id,a); }
+  a.sessionSid = ev.sid;
   Object.assign(a, { kind:ev.kind || 'claude', project:String(ev.project || 'Agent'), state:ev.state, text:String(ev.text || ''), last:Date.now() });
   a.target = null;
+  a.roamTarget = null;
   const li = document.createElement('li'), b = document.createElement('b');
   b.textContent = `${a.kind === 'codex' ? 'Codex' : 'Claude'} · ${a.project} `;
   li.append(new Date().toLocaleTimeString()+' ', b, `${labels[a.state] || 'ทำงาน'}: ${a.text}`);
   const log = document.getElementById('log'); log.prepend(li); while (log.children.length > 60) log.lastChild.remove();
+}
+
+function addResidents() {
+  ['codex', 'claude'].forEach((kind, i) => {
+    const sid = `resident:${kind}`;
+    agents.set(sid, { sid, kind, resident:true, sessionSid:null, project:'ประจำ Office', state:'idle', text:'ยังไม่พบกิจกรรม', last:0,
+      x:3+i*3, y:6, dir:2, path:[], target:null, nextRoam:0 });
+  });
+}
+
+function expireAgents(now) {
+  for (const [sid, a] of agents) if (now - a.last > 15*60e3) {
+    if (!a.resident) { agents.delete(sid); continue; }
+    if (a.sessionSid) {
+      Object.assign(a, { sessionSid:null, project:'ประจำ Office', state:'idle', text:'ไม่พบกิจกรรมล่าสุด', target:null, roamTarget:null });
+    }
+  }
+}
+
+const roamSpots = [[2,3],[5,3],[3,5],[6,5],[8,6],[9,4],[3,6],[6,7]];
+function chooseTarget(a, assigned, now) {
+  if (a.state !== 'idle') return assigned;
+  if (!a.roamTarget || (!a.path.length && now >= a.nextRoam)) {
+    const candidates = roamSpots.filter(([x,y]) => !blocked.has(key(x,y)) && (x !== a.x || y !== a.y));
+    a.roamTarget = candidates[Math.floor(Math.random()*candidates.length)] || assigned;
+    a.nextRoam = Infinity;
+  }
+  if (!a.path.length && a.x === a.roamTarget[0] && a.y === a.roamTarget[1] && a.nextRoam === Infinity) a.nextRoam = now + 3000 + Math.random()*5000;
+  return a.roamTarget;
 }
 
 // ---------- isometric pixel helpers ----------
@@ -394,15 +430,42 @@ function drawAgent(a, t) {
 function drawTags(a, t) {
   const { sx: x, sy: y } = a;
   const codex = a.kind === 'codex';
-  const name = `${codex ? '>_ Codex' : '✳ Claude'} · ${a.project.slice(0, 16)}`;
-  ctx.font = '600 9px system-ui'; const w = ctx.measureText(name).width + 10;
-  rect(x - w / 2, y + 4, w, 13, codex ? 'rgba(28,31,38,.95)' : 'rgba(217,119,87,.96)');
-  rect(x - w / 2, y + 16, w, 1, codex ? '#3ddc97' : '#8a3a1f');
-  ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.fillText(name, x, y + 13.5);
+  const name = codex ? 'Codex' : 'Claude';
+  ctx.font = '500 5px Arial, "Noto Sans Thai", sans-serif'; const w = ctx.measureText(name).width + 5;
+  a.tagWidth = w;
+  rect(x - w / 2, y + 3, w, 8, codex ? 'rgba(28,31,38,.95)' : 'rgba(217,119,87,.96)');
+  rect(x - w / 2, y + 11, w, 1, codex ? '#3ddc97' : '#8a3a1f');
+  ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.fillText(name, x, y + 8.5);
   const bx = x + 11, by = a.top - 6 + Math.sin(t / 300) * 1.2;
   ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(bx, by, 8, 0, Math.PI * 2); ctx.fill();
   ctx.strokeStyle = colors[a.state] || '#7894a9'; ctx.lineWidth = 1.5; ctx.stroke();
-  ctx.font = '9px system-ui'; ctx.fillText(icons[a.state] || '•', bx, by + 3); ctx.textAlign = 'start';
+  const icon = iconImages[icons[a.state] || 'coffee'];
+  if (icon.complete && icon.naturalWidth) ctx.drawImage(icon, bx - 6, by - 6, 12, 12);
+  ctx.textAlign = 'start';
+}
+
+let pointer = null;
+const tooltip = document.getElementById('agent-tooltip');
+cv.onpointermove = e => { pointer = { x:e.clientX, y:e.clientY }; };
+cv.onpointerleave = () => { pointer = null; tooltip.hidden = true; };
+function hoveredAgent(x, y) {
+  return [...agents.values()].sort((a,b) => b.x+b.y-a.x-a.y).find(a =>
+    a.sx !== undefined && Math.abs(x-a.sx) <= Math.max(14,(a.tagWidth || 0)/2) && y >= a.top-14 && y <= a.sy+15);
+}
+function updateTooltip() {
+  if (!pointer) { tooltip.hidden = true; return; }
+  const r = cv.getBoundingClientRect();
+  const x = (pointer.x-r.left-cv.clientLeft)/cv.clientWidth*W;
+  const y = (pointer.y-r.top-cv.clientTop)/cv.clientHeight*H;
+  const a = hoveredAgent(x,y);
+  cv.style.cursor = a ? 'help' : 'default';
+  tooltip.hidden = !a;
+  if (!a) return;
+  document.getElementById('agent-tooltip-name').textContent = `${a.kind === 'codex' ? 'Codex' : 'Claude'} · ${a.project}`;
+  document.getElementById('agent-tooltip-state').textContent = a.resident && !a.sessionSid ? 'สมาชิกประจำ · ยังไม่เชื่อม session' : `สถานะ: ${labels[a.state] || 'ทำงาน'} (จากกิจกรรมล่าสุด)`;
+  document.getElementById('agent-tooltip-task').textContent = a.text || (a.state === 'idle' ? 'เดินเล่น / พักใน Lounge' : 'กำลังทำงาน');
+  tooltip.style.left = `${Math.max(8,Math.min(pointer.x+14,window.innerWidth-tooltip.offsetWidth-8))}px`;
+  tooltip.style.top = `${Math.max(8,Math.min(pointer.y+14,window.innerHeight-tooltip.offsetHeight-8))}px`;
 }
 
 function drawScene(t) {
@@ -418,10 +481,10 @@ function frame(t) {
   const dt=Math.min((t-lastFrame)/1000,.05);lastFrame=t;
   ctx.setTransform(SCALE,0,0,SCALE,0,0);ctx.imageSmoothingEnabled=false;
   const counts=new Map();
+  expireAgents(Date.now());
   for(const [sid,a] of agents){
-    if(Date.now()-a.last>15*60e3){agents.delete(sid);continue;}
     const spots=zones[a.state]||zones.idle, idx=counts.get(spots)||0;counts.set(spots,idx+1);
-    const target=spots[idx%spots.length], targetKey=key(...target);
+    const target=chooseTarget(a,spots[idx%spots.length],t), targetKey=key(...target);
     // Finish the current tile before replanning, so a new event cannot cut a corner through a wall.
     if(a.target!==targetKey&&(!a.path.length||(a.x===a.path[0][0]&&a.y===a.path[0][1]))){a.path=route([Math.round(a.x),Math.round(a.y)],target);a.target=targetKey;}
     if(a.path.length){const [nx,ny]=a.path[0],dx=nx-a.x,dy=ny-a.y,dist=Math.hypot(dx,dy),step=dt*3.5;
@@ -435,14 +498,16 @@ function frame(t) {
     else { a.dir = 2; a.flip = false; }
   }
   drawScene(t);
+  updateTooltip();
   if(!agents.size){ctx.font='bold 12px Arial, "Noto Sans Thai", sans-serif';const m='รอ Claude / Codex เข้างาน หรือกด DEMO',w=ctx.measureText(m).width+20;
     const [mx,my]=iso(16,11);rect(mx-w/2,my-12,w,22,'rgba(15,42,82,.88)');ctx.fillStyle='#fff';ctx.textAlign='center';ctx.fillText(m,mx,my+3);ctx.textAlign='start';}
   requestAnimationFrame(frame);
 }
+addResidents();
 requestAnimationFrame(frame);
 const status=document.getElementById('status'),es=new EventSource('/events');
-es.onopen=()=>status.textContent='🟢 เชื่อมต่อแล้ว: Claude + Codex';
-es.onerror=()=>status.textContent='🔴 เชื่อมต่อไม่ได้ กรุณารัน node server.js';
+es.onopen=()=>{status.dataset.connection='online';status.textContent='เชื่อมต่อแล้ว: Claude + Codex';};
+es.onerror=()=>{status.dataset.connection='offline';status.textContent='เชื่อมต่อไม่ได้ กรุณารัน node server.js';};
 es.onmessage=e=>{try{apply(JSON.parse(e.data));}catch{status.textContent='ได้รับ event ที่อ่านไม่ได้';}};
 let demoTimers=[];
 document.getElementById('demo').onclick=()=>{

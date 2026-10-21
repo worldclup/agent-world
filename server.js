@@ -157,10 +157,12 @@ http.createServer((req, res) => {
     const pathname = new URL(req.url, 'http://localhost').pathname;
     const allowed = { '/': 'index.html', '/index.html': 'index.html', '/office.js': 'office.js', '/assets/roguelikeCity_magenta.png': 'assets/roguelikeCity_magenta.png' };
     const file = allowed[pathname];
-    if (!file) { res.writeHead(404); res.end('Not found'); return; }
-    fs.readFile(path.join(__dirname, file), (err, data) => {
+    const iconFile = /^\/assets\/icons\/(coffee|book|edit|globe|message|terminal|users|play|info-box)\.svg$/.test(pathname) ? pathname.slice(1) : null;
+    const target = file || iconFile;
+    if (!target) { res.writeHead(404); res.end('Not found'); return; }
+    fs.readFile(path.join(__dirname, target), (err, data) => {
       if (err) { res.writeHead(500); res.end('Unable to load file'); return; }
-      res.writeHead(200, { 'Content-Type': file.endsWith('.png') ? 'image/png' : file.endsWith('.js') ? 'text/javascript; charset=utf-8' : 'text/html; charset=utf-8' });
+      res.writeHead(200, { 'Content-Type': target.endsWith('.svg') ? 'image/svg+xml' : target.endsWith('.png') ? 'image/png' : target.endsWith('.js') ? 'text/javascript; charset=utf-8' : 'text/html; charset=utf-8' });
       res.end(data);
     });
   }

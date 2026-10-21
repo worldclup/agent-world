@@ -19,22 +19,70 @@
   button { font-family: 'Press Start 2P', 'Noto Sans Thai', sans-serif; font-size: 10px; background: var(--blue); color: #fff; border: 3px solid var(--navy); padding: 8px 12px; cursor: pointer; }
   button:hover { background: #2f7be0; }
   #status { font-size: 15px; }
+  #status::before { content: ''; display: inline-block; width: 8px; height: 8px; margin-right: 7px; background: #8b9bb2; }
+  #status[data-connection="online"]::before { background: #2e9d69; }
+  #status[data-connection="offline"]::before { background: #d95353; }
+  .icon { display: inline-block; width: 18px; height: 18px; vertical-align: -3px; margin-right: 6px; background: currentColor; mask: var(--icon) center / contain no-repeat; -webkit-mask: var(--icon) center / contain no-repeat; }
   .legend { font-size: 15px; opacity: .85; }
   ul { list-style: none; padding: 0; margin: 0; max-height: 240px; overflow: auto; background: var(--panel); border: 4px solid var(--line); }
   li { padding: 4px 10px; border-bottom: 1px solid #e6edf7; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   li b { color: var(--blue); }
+  #agent-tooltip { position: fixed; z-index: 10; width: 260px; max-width: calc(100vw - 24px); box-sizing: border-box; padding: 12px 14px; border: 1px solid #526b92; border-radius: 10px; background: #142943; color: #f3f7ff; box-shadow: 0 6px 24px #0f2a5233; pointer-events: none; font: 13px/1.6 'Noto Sans Thai', sans-serif; overflow-wrap: anywhere; }
+  #agent-tooltip strong { display: block; font-size: 14px; }
+  #agent-tooltip p { margin: 4px 0 0; }
+  .guide { margin: 12px 0 16px; font: 14px/1.7 'Noto Sans Thai', sans-serif; }
+  .guide summary { display: list-item; width: fit-content; padding: 7px 14px; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--blue); cursor: pointer; font-weight: 600; }
+  .guide summary:focus-visible { outline: 3px solid var(--blue); outline-offset: 3px; }
+  .guide[open] summary { margin-bottom: 12px; }
+  .guide-content { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 12px; }
+  .guide section { padding: 16px; background: #fff; border: 1px solid var(--line); border-radius: 10px; }
+  .guide h2 { margin: 0 0 10px; font-size: 15px; }
+  .guide p { margin: 6px 0; }
+  .guide dl { margin: 0; }
+  .guide dt { font-weight: 600; margin-top: 10px; }
+  .guide dd { margin: 2px 0 0; color: #506686; }
 </style>
 </head>
 <body>
 <main>
   <header><div class="logo">D</div><h1>DHITETA <span>AI</span> · AGENT OFFICE</h1></header>
   <canvas id="c"></canvas>
+  <aside id="agent-tooltip" role="tooltip" hidden><strong id="agent-tooltip-name"></strong><p id="agent-tooltip-state"></p><p id="agent-tooltip-task"></p></aside>
   <div class="bar">
-    <button id="demo">▶ DEMO</button>
+    <button id="demo"><span class="icon" style="--icon:url('/assets/icons/play.svg')" aria-hidden="true"></span>DEMO</button>
     <span id="status">กำลังเชื่อมต่อ…</span>
   </div>
-  <div class="legend"><b style="color:#d97757">✳ Claude</b> = เสื้อสูทส้ม · <b>&gt;_ Codex</b> = ฮู้ดดำ<br>☕ Lounge = ว่าง · 📖 แถวโต๊ะหน้า = อ่าน/ค้นหา · 💻 แถวโต๊ะหลัง = แก้ไฟล์ · 🌐 จอใหญ่ = ค้นเว็บ · 💭 Meeting = คิด/ตอบ · ⚙️ Server = รันคำสั่ง</div>
-  <br>
+  <details class="guide">
+    <summary><span class="icon" style="--icon:url('/assets/icons/info-box.svg')" aria-hidden="true"></span>คู่มือ Office · ตัวละครและโซนงาน</summary>
+    <div class="guide-content">
+      <section aria-labelledby="guide-characters">
+        <h2 id="guide-characters">รู้จักตัวละคร</h2>
+        <dl>
+          <dt style="color:#ba5a3b"><span class="icon" style="--icon:url('/assets/icons/message.svg')" aria-hidden="true"></span>Claude</dt><dd>ตัวละครเสื้อสูทสีส้ม</dd>
+          <dt><span class="icon" style="--icon:url('/assets/icons/terminal.svg')" aria-hidden="true"></span>Codex</dt><dd>ตัวละครฮู้ดสีดำ</dd>
+        </dl>
+        <p>ทั้งสองเป็นสมาชิกประจำที่เห็นได้ทันที เมื่อมีกิจกรรมจาก session จริง ตัวละครจะเดินไปยังโซนงานที่เกี่ยวข้อง</p>
+      </section>
+      <section aria-labelledby="guide-zones">
+        <h2 id="guide-zones">แต่ละโซนทำอะไร</h2>
+        <dl>
+          <dt><span class="icon" style="--icon:url('/assets/icons/coffee.svg')" aria-hidden="true"></span>Lounge</dt><dd>พักผ่อนและเดินเล่นเมื่อไม่มีงาน</dd>
+          <dt><span class="icon" style="--icon:url('/assets/icons/book.svg')" aria-hidden="true"></span>Workspace · โต๊ะแถวหน้า</dt><dd>อ่านไฟล์และค้นหาในโปรเจกต์</dd>
+          <dt><span class="icon" style="--icon:url('/assets/icons/edit.svg')" aria-hidden="true"></span>Workspace · โต๊ะแถวหลัง</dt><dd>เขียนและแก้ไขไฟล์</dd>
+          <dt><span class="icon" style="--icon:url('/assets/icons/globe.svg')" aria-hidden="true"></span>จอใหญ่</dt><dd>ค้นหาข้อมูลบนเว็บ</dd>
+          <dt><span class="icon" style="--icon:url('/assets/icons/message.svg')" aria-hidden="true"></span>Meeting</dt><dd>คิด ตอบ และประสานงานกับ Agent</dd>
+          <dt><span class="icon" style="--icon:url('/assets/icons/terminal.svg')" aria-hidden="true"></span>Server</dt><dd>รันคำสั่งและตรวจสอบผลการทำงาน</dd>
+        </dl>
+      </section>
+      <section aria-labelledby="guide-usage">
+        <h2 id="guide-usage">ดูสถานะและทดลองใช้งาน</h2>
+        <p><b>ชี้เมาส์ที่ตัวละครหรือป้ายชื่อ</b> เพื่อดูชื่อโปรเจกต์ สถานะ และงานล่าสุด</p>
+        <p><b>ปุ่ม DEMO</b> สร้างตัวละครสาธิตให้เดินสลับโซน โดยไม่เรียกใช้งาน AI จริง</p>
+        <p><b>ยังไม่เชื่อม session</b> หมายถึงตัวละครประจำที่ยังไม่ได้ผูกกับกิจกรรมจริง การเดินเล่นเป็นเพียงภาพเคลื่อนไหวและไม่ใช้ token</p>
+        <p><b>รายการด้านล่าง</b> แสดงประวัติกิจกรรมล่าสุดที่ Office ได้รับ</p>
+      </section>
+    </div>
+  </details>
   <ul id="log"></ul>
 </main>
 <script src="/office.js"></script>
