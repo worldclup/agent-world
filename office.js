@@ -256,45 +256,114 @@ function floorText(gx, gy, text) {                // text painted flat on the fl
 }
 
 // ---------- room ----------
+const BUILDINGS = {
+  modern: { walkway:["#e9eef6","#e2e9f3"], palette:{...C}, floors:null, facade:['#71859f','#4d6382'], trim:'#9cacc2' },
+  cyber: { walkway:["#252b43","#20253b"], palette:{ navy:'#171a32', blue:'#55dce5', blue2:'#6c5dcc', blue3:'#403a77', wall:'#30324d', wallSide:'#232840', edge:'#65759b', wood:'#6c647f', woodDark:'#423e59', glass:'rgba(113,91,220,.26)', glassTop:'#e583db' }, floors:{wood:['#46425a','#3c3c55'],tile:['#313b53','#293249'],carpet:['#51477a','#443b69'],dark:['#242d43','#1d253a']}, facade:['#34344f','#252740'],trim:'#cf78dc' },
+  loft: { walkway:["#a99e90","#9e9387"], palette:{ navy:'#303741', blue:'#8d694a', blue2:'#a17b56', blue3:'#665240', wall:'#bb8a72', wallSide:'#996c59', edge:'#c1ad96', wood:'#c59863', woodDark:'#805c3f', glass:'rgba(163,192,193,.25)', glassTop:'#747f83' }, floors:{wood:['#c3a17d','#b79773'],tile:['#c3b8a7','#b8ac9b'],carpet:['#6b777e','#606c73'],dark:['#464e55','#3b444b']}, facade:['#936c5b','#684f48'],trim:'#b58e6c' },
+  garden: { walkway:["#d4decd","#c8d5c1"], palette:{ navy:'#315c53', blue:'#4d8e7b', blue2:'#70ab93', blue3:'#3e6d5a', wall:'#edf0dd', wallSide:'#d6e1ce', edge:'#b8cec1', wood:'#c4a26f', woodDark:'#8f744d', glass:'rgba(136,206,187,.28)', glassTop:'#87bbaa' }, floors:{wood:['#d9caac','#d0c0a0'],tile:['#ebefe0','#dfe7d6'],carpet:['#8ab4a1','#7ea994'],dark:['#46645e','#3b5852']}, facade:['#a2b6a8','#738f83'],trim:'#c1d3ba' },
+};
+let buildingTheme='modern';
+function setBuilding(theme) {
+  if(!BUILDINGS[theme])return;
+  buildingTheme=theme;
+  const {sky,sky2}=C;
+  Object.assign(C,BUILDINGS.modern.palette,BUILDINGS[theme].palette,{sky,sky2});
+}
 function floorColor(kind, x, y) {
   const odd = (x + y) % 2;
+  const style=BUILDINGS[buildingTheme];
+  if (!kind) return style.walkway[odd?0:1];
+  const pair=style.floors?.[kind];
+  if(pair)return pair[odd?0:1];
   return { wood: odd ? '#e8d4b0' : '#e2cca5', tile: odd ? '#f7f9fc' : '#edf2f9', carpet: odd ? '#3d70c2' : '#3567b8', dark: odd ? '#2f394e' : '#2a3346' }[kind]
     || (odd ? '#e9eef6' : '#e2e9f3');
 }
+const BACKGROUNDS = {
+  rain: { sky:['#12263e','#8ab6ca'], horizon:['#40596c','#d1e0df'], base:['#1c3349','#a1b9c4'], near:['#203e52','#7c9da9'], far:['#425d70','#b0c8cf'], accent:'#efce91' },
+  sunset: { sky:['#241f46','#b5a2d4'], horizon:['#73516f','#f3bd9e'], base:['#332d50','#c7a5b5'], near:['#403c63','#9a8cae'], far:['#685a7f','#c8afc8'], accent:'#ffe0a0' },
+  neon: { sky:['#130f32','#8babc9'], horizon:['#34234e','#c5bfd8'], base:['#171c3e','#8a9fba'], near:['#25203f','#6c7e9e'], far:['#3b3559','#a6afca'], accent:'#76e4ef' },
+};
+let backgroundTheme='rain';
+try { const saved=localStorage.getItem('office-background'); if(BACKGROUNDS[saved])backgroundTheme=saved; setBuilding(localStorage.getItem('office-building')); } catch {}
+const backgroundSelect=document.getElementById('background-theme');
+backgroundSelect.value=backgroundTheme;
+backgroundSelect.onchange=()=>{
+  if(!BACKGROUNDS[backgroundSelect.value])return;
+  backgroundTheme=backgroundSelect.value;
+};
+const settingsDialog=document.getElementById('scene-settings');
+let settingsSnapshot=null;
+function openSettings() {
+  settingsSnapshot={building:buildingTheme,background:backgroundTheme};
+  backgroundSelect.value=backgroundTheme;
+  backgroundSelect.refreshAppearance?.();
+  Object.keys(BUILDINGS).forEach(name=>{document.getElementById(`building-${name}`).checked=name===buildingTheme;});
+  settingsDialog.showModal();
+}
+function cancelSettings() {
+  if(settingsSnapshot){setBuilding(settingsSnapshot.building);backgroundTheme=settingsSnapshot.background;backgroundSelect.value=backgroundTheme;backgroundSelect.refreshAppearance?.();settingsSnapshot=null;}
+  settingsDialog.close();
+}
+Object.keys(BUILDINGS).forEach(name=>{document.getElementById(`building-${name}`).onchange=()=>setBuilding(name);});
+document.getElementById('open-settings').onclick=openSettings;
+document.getElementById('cancel-settings').onclick=cancelSettings;
+document.getElementById('close-settings').onclick=cancelSettings;
+settingsDialog.oncancel=e=>{e.preventDefault();cancelSettings();};
+settingsDialog.onclose=()=>{if(settingsSnapshot)cancelSettings();};
+document.getElementById('save-settings').onclick=()=>{
+  try { localStorage.setItem('office-background',backgroundTheme);localStorage.setItem('office-building',buildingTheme); } catch {}
+  settingsSnapshot=null;settingsDialog.close();
+};
 function drawBangkok(t) {
+  const theme=BACKGROUNDS[backgroundTheme];
   const day = lighting.daylight, twilight = lighting.label === 'ยามเย็น' || lighting.label === 'ยามเช้า';
   const mix = (a,b) => '#' + [1,3,5].map(i => Math.round(parseInt(a.slice(i,i+2),16)*(1-day)+parseInt(b.slice(i,i+2),16)*day).toString(16).padStart(2,'0')).join('');
   const sky = ctx.createLinearGradient(0,0,0,H);
-  sky.addColorStop(0,mix('#101a38','#9bc9e6'));
-  sky.addColorStop(.48,twilight ? '#e6ad9f' : mix('#394064','#e7edf2'));
-  sky.addColorStop(1,mix('#18283f','#b8c8ce'));
+  sky.addColorStop(0,mix(...theme.sky));
+  sky.addColorStop(.48,twilight ? (backgroundTheme==='neon'?'#895e9d':'#e6ad9f') : mix(...theme.horizon));
+  sky.addColorStop(1,mix(...theme.base));
   ctx.fillStyle=sky;ctx.fillRect(0,0,W,H);
   // Small pixel celestial bodies and clouds sit behind Bangkok's layered skyline.
   if(day<.35){
     for(let i=0;i<38;i++) rect((i*79+19)%W,8+(i*31)%82,1,1,'#d9e6ef');
-    rect(577,23,14,14,'#fff0be');rect(582,20,9,3,'#fff0be');rect(582,22,12,11,mix('#101a38','#9bc9e6'));
+    rect(577,23,14,14,'#fff0be');rect(582,20,9,3,'#fff0be');rect(582,22,12,11,mix(...theme.sky));
   } else {
     rect(568,28,20,20,twilight?'#ffd398':'#fff1ce');
     [[60,29],[322,19],[475,54]].forEach(([x,y])=>{rect(x,y,43,5,'#ffffff55');rect(x+12,y-4,24,5,'#ffffff55');});
   }
   for(let i=0;i<25;i++) {
     const x=i*29-8,h=25+(i*37)%58;
-    rect(x,150-h,25,h,mix('#263755','#abc0cf'));rect(x+3,146-h,19,4,mix('#334567','#bfd0db'));
+    rect(x,150-h,25,h,mix(...theme.far));rect(x+3,146-h,19,4,mix(...theme.far));
+  }
+  if(backgroundTheme==='rain') {
+    for(let i=0;i<4;i++) { const x=((t/600+i*179)%(W+160))-160; rect(x,125+i*9,155,5,'#d4e5ef17');rect(x+28,121+i*9,90,4,'#d4e5ef12'); }
   }
   // Original skyline silhouettes: stepped high-rise, rooftop tanks, antennas and shophouses.
+  if(backgroundTheme==='sunset') {
+    rect(525,109,25,14,day<.35?'#d5b7d9':'#ffdbad');
+    rect(521,114,33,7,day<.35?'#d5b7d9':'#ffdbad');
+  }
   const towers=[[7,49,35],[53,76,31],[104,111,36],[158,67,34],[208,91,29],[269,57,40],[331,95,33],[388,62,37],[448,104,37],[509,77,33],[563,118,36],[619,70,39]];
   towers.forEach(([x,h,w],i)=>{
     const y=157-h;
-    rect(x+4,y+5,w,h,mix('#16243e','#718fa6'));rect(x,y,w,h,mix('#23334f','#92a9bb'));
+    rect(x+4,y+5,w,h,mix('#16243e','#718fa6'));rect(x,y,w,h,mix(...theme.near));
     rect(x,y,w,3,mix('#42526d','#b1c2ce'));
     if(i===2||i===10){rect(x+6,y-9,w-12,9,mix('#23334f','#92a9bb'));rect(x+w/2,y-17,2,8,'#72869b');}
     else {rect(x+5,y-7,9,7,mix('#34405a','#8299a6'));rect(x+6,y-9,7,2,'#596e85');}
     for(let row=0;row<Math.floor((h-8)/9);row++) for(let col=0;col<Math.floor((w-5)/7);col++){
       const lit=(row*11+col*7+i)%5<2;
-      rect(x+4+col*7,y+7+row*9,3,5,day<.6&&lit?'#efca7e':mix('#142239','#c4dbe6'));
+      rect(x+4+col*7,y+7+row*9,3,5,day<.6&&lit?theme.accent:mix('#142239','#c4dbe6'));
     }
     if(i===4){for(let n=0;n<4;n++)rect(x+w-8,y+12+n*10,8,8,mix('#394064','#d7e3e9'));}
+    if(backgroundTheme==='neon' && i%3===0) {
+      const neon=i%2?'#ed8acb':'#6bd9e5';
+      rect(x+2,y+h-20,w-4,9,day<.6?neon:'#8297b7');rect(x+5,y+h-17,w-10,2,'#27304c');
+      if(day<.6)rect(x,y+h-9,w,5,i%2?'#df70be22':'#62dbed22');
+    }
   });
+  if(backgroundTheme==='sunset') {
+    for(let i=0;i<3;i++)rect((t/900+i*205)%(W+100)-100,132+i*8,70,2,'#edc2cb25');
+  }
   // Elevated railway, with an animated train visible between the office and skyline.
   rect(0,166,W,7,mix('#33435a','#8e9eac'));rect(0,165,W,2,'#b3c0ca');
   for(let x=22;x<W;x+=88)rect(x,173,7,28,mix('#29394e','#a3b0b8'));
@@ -311,14 +380,15 @@ function drawBangkok(t) {
 }
 
 function drawBuildingExterior() {
+  const style=BUILDINGS[buildingTheme];
   const left = [iso(1,21),iso(31,21)], right = [iso(31,1),iso(31,21)];
   const depth = H - Math.min(...left.concat(right).map(p => p[1])) + 30;
   const face = (edge, top, bottom, color) => poly([up(edge[0],-top),up(edge[1],-top),up(edge[1],-bottom),up(edge[0],-bottom)],color);
-  face(left,0,depth,'#71859f'); face(right,0,depth,'#4d6382');
+  face(left,0,depth,style.facade[0]); face(right,0,depth,style.facade[1]);
   // Continue the facade beyond the canvas so the tower has no visible base.
   for(let floor=0;14+floor*62<depth;floor++) {
     const z=14+floor*62;
-    face(left,z-5,z-2,'#9cacc2');face(right,z-5,z-2,'#7088a6');
+    face(left,z-5,z-2,style.trim);face(right,z-5,z-2,style.facade[0]);
     for(let col=0;col<14;col++) {
       const a=2+col*2;
       const edge=[iso(a,21),iso(a+1.35,21)];
@@ -334,9 +404,13 @@ function drawBuildingExterior() {
     }
   }
   // Continuous corner columns extend below the viewport.
-  face([iso(1,21),iso(1.45,21)],0,depth,'#a2b1c5');
-  face([iso(30.55,21),iso(31,21)],0,depth,'#98aac1');
-  face([iso(31,20.55),iso(31,21)],0,depth,'#637d9d');
+  face([iso(1,21),iso(1.45,21)],0,depth,style.trim);
+  face([iso(30.55,21),iso(31,21)],0,depth,style.trim);
+  face([iso(31,20.55),iso(31,21)],0,depth,style.facade[1]);
+  if(buildingTheme==='cyber') {
+    face([iso(30.9,21),iso(31,21)],0,depth,'#ed83db');
+    face([iso(31,20.85),iso(31,21)],0,depth,'#5de6e6');
+  }
 }
 
 function drawRoom(t) {
@@ -367,6 +441,29 @@ function drawRoom(t) {
   wallQuad('l', 1, 21, WALL - 5, WALL, C.navy); wallQuad('r', 1, 31, WALL - 5, WALL, C.navy);
   poly([up(iso(1, 1), WALL), up(iso(31, 1), WALL), up(iso(31, .6), WALL), up(iso(1, .6), WALL)], '#1b3a6b');   // wall caps
   poly([up(iso(1, 1), WALL), up(iso(1, 21), WALL), up(iso(.6, 21), WALL), up(iso(.6, 1), WALL)], '#1b3a6b');
+  if(buildingTheme==='cyber') {
+    for(const side of ['l','r']) {
+      wallQuad(side,1,side==='l'?21:31,9,10,'#55e6e5');
+      wallQuad(side,1,side==='l'?21:31,64,66,'#ed83db');
+    }
+    for(let x=17;x<26;x+=2)wallQuad('r',x,x+.8,16,18,'#e583db');
+  } else if(buildingTheme==='loft') {
+    for(const side of ['l','r']) {
+      const end=side==='l'?21:31;
+      for(let h=8;h<70;h+=8) {
+        wallQuad(side,1,end,h,h+.6,'#806451');
+        for(let a=1+(h%16?1:0);a<end;a+=2)wallQuad(side,a,a+.04,h,h+7,'#806451');
+      }
+      wallQuad(side,1,end,62,65,'#454d55');
+      wallQuad(side,10.5,10.65,5,65,'#454d55');
+    }
+  } else if(buildingTheme==='garden') {
+    [10.5,12,15.5,17.5].forEach(a=>{
+      wallQuad('l',a,a+.9,34,53,'#527f60');
+      const p=wallPt('l',a+.45,39);plantTop(p,.55);
+    });
+    wallQuad('r',1,31,8,11,'#aa916b');
+  }
   // windows
   const win = (side, a, b) => {
     wallQuad(side, a, b, 22, 60, C.navy); wallQuad(side, a + .15, b - .15, 24, 58, C.sky); wallQuad(side, a + .15, b - .15, 44, 58, C.sky2);
@@ -760,6 +857,36 @@ es.onopen=()=>{status.dataset.connection='online';status.textContent='เชื�
 es.onerror=()=>{status.dataset.connection='offline';status.textContent='เชื่อมต่อไม่ได้ กรุณารัน node server.js';};
 es.onmessage=e=>{try{apply(JSON.parse(e.data));}catch{status.textContent='ได้รับ event ที่อ่านไม่ได้';}};
 let demoTimers=[];
+function enhanceSelect(select, label) {
+  if (!select.options) return;
+  const dropdown=document.createElement('details');dropdown.className='theme-select';
+  const trigger=document.createElement('summary');trigger.setAttribute('aria-label',label);
+  const menu=document.createElement('div');menu.className='theme-select-options';
+  const buttons=[...select.options].map(option=>{
+    const button=document.createElement('button');button.type='button';button.textContent=option.textContent;
+    button.onclick=()=>{select.value=option.value;select.dispatchEvent(new Event('change',{bubbles:true}));select.refreshAppearance();dropdown.open=false;trigger.focus();};
+    menu.append(button);return button;
+  });
+  select.refreshAppearance=()=>{
+    trigger.textContent=select.options[select.selectedIndex]?.textContent || '';
+    buttons.forEach((button,i)=>button.setAttribute('aria-pressed',String(select.options[i].selected)));
+  };
+  dropdown.append(trigger,menu);select.after(dropdown);select.hidden=true;select.refreshAppearance();
+  dropdown.addEventListener('toggle',()=>{if(dropdown.open)select.refreshAppearance();});
+  dropdown.onkeydown=e=>{
+    if(e.key==='Escape'){e.preventDefault();e.stopPropagation();dropdown.open=false;trigger.focus();}
+    else if(['ArrowDown','ArrowUp','Home','End'].includes(e.key)){
+      e.preventDefault();dropdown.open=true;
+      const i=buttons.indexOf(document.activeElement), n=buttons.length;
+      const next=e.key==='Home'?0:e.key==='End'?n-1:(i+(e.key==='ArrowDown'?1:-1)+n)%n;
+      buttons[next].focus();
+    }
+  };
+  dropdown.addEventListener('focusout',e=>{if(!dropdown.contains(e.relatedTarget))dropdown.open=false;});
+  document.addEventListener('pointerdown',e=>{if(!dropdown.contains(e.target))dropdown.open=false;});
+}
+enhanceSelect(document.getElementById('activity-sort'),'เรียงลำดับกิจกรรม');
+enhanceSelect(backgroundSelect,'บรรยากาศพื้นหลัง');
 document.getElementById('demo').onclick=()=>{
   demoTimers.forEach(clearTimeout);demoTimers=[];
   const states=['idle','write','think','bash'];

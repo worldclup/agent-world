@@ -8,6 +8,12 @@
 <style>
   :root { --blue: #79a9ef; --navy: #e1eafa; --bg: #151f37; --panel: #1c2b47; --line: #425d83; --muted: #acbdd5; --font-body: 'Pixelify Sans', 'Noto Sans Thai', sans-serif; --font-pixel: var(--font-body); }
   *, *::before, *::after { box-sizing: border-box; }
+  * { scrollbar-width: thin; scrollbar-color: #647fa5 transparent; }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track, ::-webkit-scrollbar-corner { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #647fa5; border-radius: 0; }
+  ::-webkit-scrollbar-thumb:hover { background: #8eadd6; }
+  ::-webkit-scrollbar-button { display: none; }
   body { margin: 0; background: var(--bg); color: var(--navy); font-family: var(--font-body); line-height: 1.7; }
   main { width: 100%; height: 100svh; margin: 0 auto; padding: clamp(10px, 1.5vw, 20px); display: flex; flex-direction: column; }
   header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
@@ -25,6 +31,43 @@
   .activity-toolbar .activity-title { margin: 0; }
   #activity-sort { min-width: 0; padding: 5px 6px; border: 1px solid var(--line); border-radius: 0; background: var(--panel); color: var(--navy); font: 11px var(--font-body); cursor: pointer; }
   #activity-sort:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+  .background-setting { display: grid; gap: 5px; margin-top: 14px; font: 12px/1.6 var(--font-body); }
+  #background-theme { width: 100%; padding: 7px 8px; border: 1px solid var(--line); border-radius: 0; background: var(--panel); color: var(--navy); font: 12px var(--font-body); }
+  #background-theme:focus-visible { outline: 2px solid var(--blue); }
+  .theme-select { position: relative; min-width: 0; font: 12px/1.6 var(--font-body); }
+  .theme-select > summary { list-style: none; cursor: pointer; padding: 6px 26px 6px 9px; border: 1px solid var(--line); background: var(--panel); color: var(--navy); position: relative; white-space: nowrap; }
+  .theme-select > summary::-webkit-details-marker { display: none; }
+  .theme-select > summary::after { content: ''; position: absolute; right: 9px; top: 45%; width: 6px; height: 6px; border-right: 2px solid #8fb6ea; border-bottom: 2px solid #8fb6ea; transform: rotate(45deg); }
+  .theme-select[open] > summary { border-color: #79a9ef; background: #2c4365; }
+  .theme-select-options { position: absolute; top: calc(100% + 3px); right: 0; z-index: 5; min-width: 100%; width: max-content; max-width: min(320px, 85vw); padding: 4px; border: 1px solid #6c8db9; background: #17263f; box-shadow: 3px 3px 0 #080f20; }
+  .theme-select-options button { display: block; width: 100%; text-align: left; padding: 7px 10px; border: 0; border-left: 2px solid transparent; background: transparent; color: #d7e5f8; font: 12px/1.6 var(--font-body); white-space: normal; }
+  .theme-select-options button:hover, .theme-select-options button:focus-visible { background: #2c466b; outline: none; }
+  .theme-select-options button[aria-pressed="true"] { background: #253e60; border-left-color: #75d5bb; color: #a5eddd; }
+  .theme-select summary:focus-visible { outline: 2px solid #79a9ef; outline-offset: 2px; }
+  .background-setting .theme-select { width: 100%; }
+  #scene-settings { width: min(640px, calc(100vw - 24px)); max-height: 85svh; overflow: auto; padding: 20px; border: 2px solid var(--line); border-radius: 0; background: var(--bg); color: var(--navy); box-shadow: 6px 6px 0 #080f20; font: 13px/1.7 var(--font-body); }
+  #scene-settings::backdrop { background: #070d20aa; }
+  .settings-heading { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+  .settings-heading h2 { margin: 0; font-size: 18px; }
+  .settings-heading button { font: 18px var(--font-body); padding: 2px 9px; }
+  #scene-settings fieldset { border: 0; margin: 16px 0; padding: 0; }
+  #scene-settings legend { margin-bottom: 8px; font-weight: 600; }
+  .building-options { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; }
+  .building-card { position: relative; display: block; cursor: pointer; padding: 8px; border: 2px solid var(--line); background: var(--panel); }
+  .building-card:has(input:checked) { border-color: #8fcaff; background: #2d4567; }
+  .building-card:has(input:focus-visible) { outline: 2px solid #fff; outline-offset: 2px; }
+  .building-card input { margin: 0 5px 0 0; accent-color: #79a9ef; }
+  .building-card b { font: 600 15px var(--font-pixel); }
+  .building-card small { display: block; margin-top: 4px; color: var(--muted); font-size: 11px; }
+  .building-preview { height: 68px; margin-bottom: 8px; background: linear-gradient(150deg, #1a2b47 35%, transparent 35%), repeating-linear-gradient(90deg, transparent 0 16px, #7896b4 16px 19px), repeating-linear-gradient(0deg, #adc5da 0 13px, #e2edf8 13px 19px); border-bottom: 4px solid #5079a8; }
+  .preview-cyber { background: linear-gradient(150deg, #19152e 35%, transparent 35%), repeating-linear-gradient(90deg, transparent 0 16px, #e779d1 16px 18px), repeating-linear-gradient(0deg, #24233f 0 13px, #51e1e4 13px 15px); border-color: #e779d1; }
+  .preview-loft { background: linear-gradient(150deg, #302c31 35%, transparent 35%), repeating-linear-gradient(90deg, transparent 0 18px, #3d454e 18px 21px), repeating-linear-gradient(0deg, #a56c55 0 9px, #d5a080 9px 11px); border-color: #c79c65; }
+  .preview-garden { background: linear-gradient(150deg, #326356 35%, transparent 35%), repeating-linear-gradient(90deg, transparent 0 16px, #d1daca 16px 19px), repeating-linear-gradient(0deg, #b7d4ce 0 13px, #69a778 13px 19px); border-color: #7cb27c; }
+  .settings-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
+  .settings-actions button { font: 600 13px var(--font-body); }
+  #save-settings { background: #315f9d; }
+  #cancel-settings { background: var(--panel); }
+  @media (max-width: 400px) { .building-options { grid-template-columns: 1fr; } }
   #log { flex: 1; min-height: 0; max-height: none; border-width: 1px; border-radius: 0; }
   #log li { white-space: normal; overflow-wrap: anywhere; font: 12px/1.8 var(--font-body); padding: 10px 12px; }
   #log .activity { border-left: 3px solid var(--activity-color, #79a9ef); margin-bottom: 5px; background: #1d2e49; }
@@ -84,9 +127,11 @@
   .guide dl { margin: 0; }
   .guide dt { font-weight: 600; margin-top: 10px; }
   .guide dd { margin: 2px 0 0; color: var(--muted); }
-  .scene-controls { position: relative; display: flex; align-items: flex-start; gap: 8px; flex-shrink: 0; }
+  .scene-controls { position: relative; display: flex; flex-wrap: wrap; align-items: flex-start; gap: 8px; flex-shrink: 0; }
   .scene-controls button, .scene-controls summary { display: flex; align-items: center; min-height: 36px; padding: 6px 10px; margin: 0; border: 1px solid var(--line); border-radius: 0; background: var(--panel); color: var(--navy); font: 600 14px/1.6 var(--font-pixel); cursor: pointer; box-shadow: 2px 2px 0 #080f20; }
   .scene-controls button:hover, .scene-controls summary:hover { background: #314e76; }
+  .scene-controls #open-settings { order: 1; margin-left: auto; width: 36px; min-width: 36px; height: 36px; padding: 8px; justify-content: center; }
+  #open-settings .icon { margin: 0; color: #99c7ff; }
   .scene-controls summary { list-style: none; }
   .scene-controls summary::-webkit-details-marker { display: none; }
   .scene-controls .guide { margin: 0; }
@@ -124,6 +169,7 @@
   <aside class="sidebar" aria-label="เครื่องมือและกิจกรรม Agent">
     <div class="scene-controls">
     <button id="demo"><span class="icon" style="--icon:url('/assets/icons/play.svg')" aria-hidden="true"></span>DEMO</button>
+    <button id="open-settings" aria-label="ตั้งค่าฉาก" title="ตั้งค่าฉาก" aria-haspopup="dialog" aria-controls="scene-settings"><span class="icon" style="--icon:url('/assets/icons/sliders.svg')" aria-hidden="true"></span></button>
   <details class="guide">
     <summary><span class="icon" style="--icon:url('/assets/icons/info-box.svg')" aria-hidden="true"></span>คู่มือ</summary>
     <div class="guide-content">
@@ -169,6 +215,24 @@
   </div>
   <aside id="agent-tooltip" role="tooltip" hidden><strong id="agent-tooltip-name"></strong><p id="agent-tooltip-state"></p><p id="agent-tooltip-task"></p></aside>
 </main>
+<dialog id="scene-settings" aria-labelledby="settings-title">
+  <div class="settings-heading"><h2 id="settings-title">ตั้งค่าฉาก</h2><button id="close-settings" aria-label="ปิดและยกเลิก">×</button></div>
+  <p>เลือกเพื่อดูพรีวิวบนฉากทันที แสงยังเปลี่ยนตามเวลาเครื่องของคุณ</p>
+  <fieldset><legend>สไตล์ตึก</legend><div class="building-options">
+    <label class="building-card"><div class="building-preview" aria-hidden="true"></div><input type="radio" name="building" value="modern" id="building-modern"><b>Modern Office</b><small>ผนังขาว กระจกฟ้า เส้นสายเรียบ</small></label>
+    <label class="building-card"><div class="building-preview preview-cyber" aria-hidden="true"></div><input type="radio" name="building" value="cyber" id="building-cyber"><b>Cyberpunk</b><small>โครงตึกเข้ม ไฟ cyan–magenta</small></label>
+    <label class="building-card"><div class="building-preview preview-loft" aria-hidden="true"></div><input type="radio" name="building" value="loft" id="building-loft"><b>Industrial Loft</b><small>อิฐ เหล็กดำ ท่อเปลือย ไฟอุ่น</small></label>
+    <label class="building-card"><div class="building-preview preview-garden" aria-hidden="true"></div><input type="radio" name="building" value="garden" id="building-garden"><b>Sky Garden</b><small>สีอ่อน ไม้ และสวนบนอาคาร</small></label>
+  </div></fieldset>
+  <label class="background-setting" for="background-theme">บรรยากาศพื้นหลัง
+    <select id="background-theme">
+      <option value="rain">Bangkok after rain · หลังฝน</option>
+      <option value="sunset">Sunset rooftop · ฟ้าพีชม่วง</option>
+      <option value="neon">Neon Bangkok · ไฟเมือง</option>
+    </select>
+  </label>
+  <div class="settings-actions"><button id="cancel-settings">ยกเลิก</button><button id="save-settings">บันทึก</button></div>
+</dialog>
 <script src="/office.js"></script>
 </body>
 </html>

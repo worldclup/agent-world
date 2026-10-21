@@ -3,10 +3,34 @@ const vm = require('node:vm');
 const assert = require('node:assert/strict');
 const noop = () => {};
 const elements = new Map();
-const document = { getElementById(id) { if (!elements.has(id)) elements.set(id, { getContext: () => ({}), prepend: noop, append: noop, replaceChildren: noop, children: [] }); return elements.get(id); }, createElement: () => ({ append:noop }) };
-const context = vm.createContext({ document, Image:class {}, EventSource:class {}, requestAnimationFrame:noop, setTimeout, clearTimeout });
+const drawing = new Proxy({}, { get(target,key) { return key in target ? target[key] : key==='createLinearGradient' ? () => ({addColorStop:noop}) : noop; } });
+const document = { getElementById(id) { if (!elements.has(id)) elements.set(id, { getContext: () => drawing, showModal:noop, close:noop, prepend: noop, append: noop, replaceChildren: noop, children: [] }); return elements.get(id); }, createElement: () => ({ append:noop }) };
+const settingsStore = new Map();
+const localStorage = { getItem:key=>settingsStore.get(key), setItem:(key,value)=>settingsStore.set(key,value) };
+const context = vm.createContext({ document, localStorage, Image:class {}, EventSource:class {}, requestAnimationFrame:noop, setTimeout, clearTimeout });
 vm.runInContext(fs.readFileSync('office.js','utf8'),context);
 vm.runInContext(`
+  for(const theme of ['rain','sunset','neon']) {
+    backgroundSelect.value=theme;backgroundSelect.onchange();
+    if(backgroundTheme!==theme) throw new Error('Background theme selection failed');
+  }
+  backgroundSelect.value='unknown';backgroundSelect.onchange();
+  if(backgroundTheme!=='neon') throw new Error('Invalid theme must be ignored');
+  setBuilding('modern');openSettings();setBuilding('cyber');backgroundSelect.value='sunset';backgroundSelect.onchange();cancelSettings();
+  if(buildingTheme!=='modern'||backgroundTheme!=='neon') throw new Error('Cancel must restore both settings');
+  openSettings();setBuilding('garden');document.getElementById('save-settings').onclick();
+  if(localStorage.getItem('office-building')!=='garden') throw new Error('Save must persist building');
+  openSettings();setBuilding('loft');settingsDialog.oncancel({preventDefault(){}});
+  if(buildingTheme!=='garden') throw new Error('Escape must discard preview');
+  for(const name of Object.keys(BUILDINGS)) {
+    setBuilding(name);
+    if(floorColor(undefined,1,1)!==BUILDINGS[name].walkway[1]) throw new Error('Walkway must use selected building palette');
+    if(floorColor(undefined,1,2)!==BUILDINGS[name].walkway[0]) throw new Error('Walkway checkerboard must preserve both colors');
+    for(const bg of Object.keys(BACKGROUNDS)) {
+      backgroundTheme=bg;drawRoom(1000);
+    }
+  }
+  setBuilding('modern');
   activityEntries.push({time:300,sequence:0},{time:100,sequence:1},{time:200,sequence:2});
   if(sortedActivities('newest').map(e=>e.time).join(',')!=='300,200,100') throw new Error('Newest-first order failed');
   if(sortedActivities('oldest').map(e=>e.time).join(',')!=='100,200,300') throw new Error('Oldest-first order failed');
