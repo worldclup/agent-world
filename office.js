@@ -5,19 +5,17 @@ const cv = document.getElementById('c'), ctx = cv.getContext('2d');
 const COLS = 32, ROWS = 22, TW = 24, TH = 12, WALL = 72, SCALE = 2;
 const OX = 274, OY = WALL + 100;
 const W = 668, H = OY + 436;
-const thaiClock = new Intl.DateTimeFormat('en-GB', { timeZone:'Asia/Bangkok', hour:'2-digit', minute:'2-digit', hourCycle:'h23' });
 function lightingAt(date) {
-  const parts = Object.fromEntries(thaiClock.formatToParts(date).map(p => [p.type,p.value]));
-  const hour = Number(parts.hour), minute = Number(parts.minute), h = hour + minute/60;
+  const hour = date.getHours(), minute = date.getMinutes(), h = hour + minute/60;
   const daylight = h < 5 || h >= 19 ? 0 : h < 7 ? (h-5)/2 : h < 17 ? 1 : (19-h)/2;
-  return { hour, minute, daylight, label:h >= 5 && h < 7 ? 'ยามเช้า' : h >= 7 && h < 17 ? 'กลางวัน' : h >= 17 && h < 19 ? 'ยามเย็น' : 'กลางคืน', time:`${parts.hour}:${parts.minute}` };
+  return { hour, minute, daylight, label:h >= 5 && h < 7 ? 'ยามเช้า' : h >= 7 && h < 17 ? 'กลางวัน' : h >= 17 && h < 19 ? 'ยามเย็น' : 'กลางคืน', time:`${String(hour).padStart(2,'0')}:${String(minute).padStart(2,'0')}` };
 }
 let lighting = lightingAt(new Date()), lightingMinute = '';
 function updateLighting() {
   const now = new Date(), minute = Math.floor(now.getTime()/60000);
   if (minute === lightingMinute) return;
   lightingMinute = minute; lighting = lightingAt(now);
-  document.getElementById('thai-time').textContent = `${lighting.time} น. · ${lighting.label} · เวลาไทย`;
+  document.getElementById('local-time').textContent = `${lighting.time} น. · ${lighting.label}`;
   const mix = (night, day) => '#' + [1,3,5].map(i => Math.round(parseInt(night.slice(i,i+2),16)*(1-lighting.daylight)+parseInt(day.slice(i,i+2),16)*lighting.daylight).toString(16).padStart(2,'0')).join('');
   C.sky = mix('#1c315c','#9fd0f5'); C.sky2 = mix('#344b80','#c4e3fa');
 }
@@ -246,7 +244,6 @@ function drawBangkok(t) {
     rect(x+5,y-10,7,7,'#748e9c');
     for(let n=0;n<4;n++)rect(x+5,y+8+n*10,4,5,day<.6?'#dbb16d':'#c8dce4');
   }
-  ctx.font='600 9px "Pixelify Sans", "Noto Sans Thai", sans-serif';ctx.fillStyle=day<.6?'#e6d5b3':'#3c5972';ctx.textAlign='right';ctx.fillText('BANGKOK · กรุงเทพฯ',VIEW.x+VIEW.w-14,VIEW.y+17);ctx.textAlign='start';
 }
 
 function drawBuildingExterior() {

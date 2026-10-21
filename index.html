@@ -28,7 +28,7 @@
   button { font-family: 'Press Start 2P', var(--font-body); font-size: 10px; background: var(--blue); color: #fff; border: 3px solid var(--navy); padding: 8px 12px; cursor: pointer; }
   button:hover { background: #2f7be0; }
   #status { font: 12px/1.7 var(--font-body); color: var(--muted); flex: 1 1 200px; min-width: 0; overflow-wrap: anywhere; }
-  #thai-time { position: absolute; top: 12px; left: 12px; max-width: calc(100% - 24px); padding: 5px 10px; background: var(--panel); color: var(--navy); border: 1px solid var(--line); border-radius: 0; font: 12px/1.6 var(--font-body); pointer-events: none; }
+  #local-time { position: absolute; top: 12px; left: 12px; max-width: calc(100% - 24px); padding: 5px 10px; background: var(--panel); color: var(--navy); border: 1px solid var(--line); border-radius: 0; font: 12px/1.6 var(--font-body); pointer-events: none; }
   #status::before { content: ''; display: inline-block; width: 8px; height: 8px; margin-right: 7px; background: #8b9bb2; }
   #status[data-connection="online"]::before { background: #2e9d69; }
   #status[data-connection="offline"]::before { background: #d95353; }
@@ -78,7 +78,7 @@
     canvas { border-width: 2px; box-shadow: 3px 3px 0 #080f20; }
     .bar { gap: 8px; margin-top: 12px; }
     button { min-height: 44px; }
-    #thai-time { top: 7px; left: 7px; padding: 3px 6px; font-size: 10px; }
+    #local-time { top: 7px; left: 7px; padding: 3px 6px; font-size: 10px; }
     .scene-controls { gap: 6px; }
     .scene-controls button, .scene-controls summary { min-height: 36px; font-size: 13px; padding: 5px 8px; width: auto; }
     .guide summary { width: 100%; padding: 10px 12px; }
@@ -94,7 +94,7 @@
   <div class="workspace">
   <div class="scene">
     <canvas id="c" aria-label="แผนที่ Agent Office พร้อมสถานะกิจกรรม"></canvas>
-    <span id="thai-time" aria-label="เวลาและช่วงวันในประเทศไทย"></span>
+    <span id="local-time" aria-label="เวลาและช่วงวันตามเครื่องของคุณ"></span>
   </div>
   <aside class="sidebar" aria-label="เครื่องมือและกิจกรรม Agent">
     <div class="scene-controls">

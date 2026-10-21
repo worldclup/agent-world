@@ -7,10 +7,10 @@ const document = { getElementById(id) { if (!elements.has(id)) elements.set(id, 
 const context = vm.createContext({ document, Image:class {}, EventSource:class {}, requestAnimationFrame:noop, setTimeout, clearTimeout });
 vm.runInContext(fs.readFileSync('office.js','utf8'),context);
 vm.runInContext(`
-  const night = lightingAt(new Date('2026-10-21T17:00:00Z'));
-  if(night.hour!==0 || night.daylight!==0) throw new Error('Thai midnight conversion failed');
-  if(lightingAt(new Date('2026-10-21T05:00:00Z')).daylight!==1) throw new Error('Thai noon must be daylight');
-  const dusk = lightingAt(new Date('2026-10-21T11:00:00Z'));
+  const night = lightingAt(new Date(2026,9,21,0,5));
+  if(night.hour!==0 || night.daylight!==0 || night.time!=='00:05') throw new Error('Local midnight conversion failed');
+  if(lightingAt(new Date(2026,9,21,12,0)).daylight!==1) throw new Error('Local noon must be daylight');
+  const dusk = lightingAt(new Date(2026,9,21,18,0));
   if(dusk.daylight!==.5 || dusk.label!=='ยามเย็น') throw new Error('Dusk transition failed');
   for (const spots of Object.values(zones)) for (const target of spots) {
     const path = route([15,21],target);
