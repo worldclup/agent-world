@@ -465,7 +465,7 @@ function drawBangkok(t) {
   ctx.restore();
 }
 
-function drawBuildingExterior() {
+function drawBuildingExterior(t=0) {
   const style=BUILDINGS[buildingTheme];
   const maxX=COLS-1,maxY=ROWS-1;
   // Equal-height facades for every layout, long enough to hide the ground below the crop.
@@ -510,15 +510,19 @@ function drawBuildingExterior() {
   ctx.translate(sx,sy);ctx.transform(1,.5,0,1,0,0);
   ctx.shadowColor=C.sky;ctx.shadowBlur=lighting.daylight<.5?8:3;
   rect(0,0,10,13,C.sky);rect(3,3,4,7,C.white);
-  ctx.font='bold 7px monospace';ctx.textAlign='left';ctx.fillStyle=C.white;
-  ctx.fillText('DHITETA AI',15,10);
+  ctx.font='bold 6px monospace';ctx.textAlign='left';ctx.fillStyle=C.white;
+  const message='Created By Dhiteta AI',textWidth=ctx.measureText(message).width;
+  const textArea=(signEnd-2.6)*TW/2-20,cycle=textWidth+24;
+  ctx.beginPath();ctx.rect(15,-2,textArea,18);ctx.clip();
+  const textX=15-((t/65)%cycle);
+  for(let x=textX;x<15+textArea;x+=cycle)ctx.fillText(message,x,10);
   ctx.restore();
 }
 
 function drawCompactRoom(t) {
   drawBangkok(t);
   const right=COLS-1,front=ROWS-1;
-  drawBuildingExterior();
+  drawBuildingExterior(t);
   for(let y=1;y<front;y++)for(let x=1;x<right;x++){
     const area=AREAS.find(a=>x>=a.x&&x<a.x+a.w&&y>=a.y&&y<a.y+a.h);
     poly(quad(x,y,1,1),floorColor(area?.floor,x,y));
@@ -618,7 +622,7 @@ function drawZoneLabels() {
 function drawRoom(t) {
   if(officeLayout!=='large'){drawCompactRoom(t);return;}
   drawBangkok(t);
-  drawBuildingExterior();
+  drawBuildingExterior(t);
   // floor
   for (let y = 1; y < 21; y++) for (let x = 1; x < 31; x++) {
     const area = AREAS.find(a => x >= a.x && x < a.x + a.w && y >= a.y && y < a.y + a.h);

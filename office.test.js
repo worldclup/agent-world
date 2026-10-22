@@ -3,7 +3,7 @@ const vm = require('node:vm');
 const assert = require('node:assert/strict');
 const noop = () => {};
 const elements = new Map();
-const drawing = new Proxy({}, { get(target,key) { return key in target ? target[key] : key==='createLinearGradient' ? () => ({addColorStop:noop}) : noop; } });
+const drawing = new Proxy({measureText:text=>({width:text.length*3.6})}, { get(target,key) { return key in target ? target[key] : key==='createLinearGradient' ? () => ({addColorStop:noop}) : noop; } });
 const document = { getElementById(id) { if (!elements.has(id)) elements.set(id, { getContext: () => drawing, showModal:noop, close:noop, prepend: noop, append: noop, replaceChildren: noop, children: [] }); return elements.get(id); }, createElement: () => ({ append:noop }) };
 const settingsStore = new Map();
 const localStorage = { getItem:key=>settingsStore.get(key), setItem:(key,value)=>settingsStore.set(key,value) };
@@ -315,6 +315,15 @@ vm.runInContext(`
     for(const theme of Object.keys(BUILDINGS)){
       setBuilding(theme);drawRoom(1000);for(const o of objects)drawObject(o,1000);
       const exterior=[],originalPoly=poly;
+      const signFrames=[],savedFillText=ctx.fillText,savedClip=ctx.clip;
+      let clips=0;
+      try {
+        ctx.fillText=(text,x)=>{if(text==='Created By Dhiteta AI')signFrames.push(x);};
+        ctx.clip=()=>clips++;
+        drawBuildingExterior(0);const firstX=signFrames[0];signFrames.length=0;
+        drawBuildingExterior(650);
+        if(signFrames[0]!==firstX-10||clips!==2)throw new Error('Billboard text must scroll left inside a clipped panel');
+      } finally {ctx.fillText=savedFillText;ctx.clip=savedClip;}
       try {poly=(pts,color)=>exterior.push({pts,color});drawBuildingExterior();} finally {poly=originalPoly;}
       if(!exterior.some(p=>p.color===BUILDINGS[theme].facade[0])||!exterior.some(p=>p.color===BUILDINGS[theme].trim))throw new Error('Exterior must follow selected theme');
       for(const {pts} of exterior)for(const [x,y] of pts)if(x<VIEW.x||x>VIEW.x+VIEW.w||y<VIEW.y)throw new Error('Building sides outside view: '+layout+' '+theme);
