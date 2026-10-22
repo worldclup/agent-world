@@ -27,6 +27,8 @@ Click **DEMO** to generate sample agent activity without needing an active Claud
 
 Use the in-app settings to change the office layout and appearance. Browser preferences are stored locally.
 
+Settings also include English / ไทย. English is the default; the selected language is remembered in this browser. Cancel restores the language from when settings were opened. Interface labels, room hover details, and generated status summaries are localized; project names and real agent messages remain unchanged.
+
 ## Local data and privacy
 
 The server automatically reads session files under `~/.claude/projects` and `~/.codex/sessions` when present. It streams derived activity, including project/task text, to connected browser clients. Do not use real sessions in public screenshots or recordings without reviewing the visible content.

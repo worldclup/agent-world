@@ -8,6 +8,8 @@ const document = { getElementById(id) { if (!elements.has(id)) elements.set(id, 
 const settingsStore = new Map();
 const localStorage = { getItem:key=>settingsStore.get(key), setItem:(key,value)=>settingsStore.set(key,value) };
 const context = vm.createContext({ document, localStorage, Image:class {}, EventSource:class {}, requestAnimationFrame:noop, setTimeout, clearTimeout });
+document.documentElement={lang:'en'};document.querySelectorAll=()=>[];
+for(const file of ['locales/en.js','locales/th.js','i18n.js'])vm.runInContext(fs.readFileSync(file,'utf8'),context);
 vm.runInContext(fs.readFileSync('office-backgrounds.js','utf8'),context);
 vm.runInContext(fs.readFileSync('office.js','utf8'),context);
 vm.runInContext(`
@@ -387,6 +389,17 @@ vm.runInContext(`
   if(activitySummary('think','# Context from my IDE setup:').includes('IDE')) throw new Error('IDE metadata leaked into activity summary');
   if(activitySummary('write','text(await tools.exec_command({cmd: "rg file"}))').includes('tools.')) throw new Error('Tool code must be collapsed into details');
   if(activitySummary('talk','ปรับบอร์ดแล้วครับ')!=='ปรับบอร์ดแล้วครับ') throw new Error('Readable assistant text should remain visible');
+  if(i18n.language!=='en'||labels.read!=='Read / search')throw new Error('English must be the default');
+  i18n.setLanguage('th');
+  if(labels.read!=='อ่าน / ค้นหา'||activitySummary('idle','')!=='จบงานแล้ว กำลังพักผ่อน')throw new Error('Dynamic labels must switch to Thai');
+  i18n.setLanguage('en');
+  if(activitySummary('idle','')!=='Finished; taking a break')throw new Error('Dynamic labels must switch back to English');
+  openSettings();i18n.setLanguage('th');cancelSettings();
+  if(i18n.language!=='en')throw new Error('Cancel must restore language');
+  const rawMessage='ปรับบอร์ดแล้วครับ';
+  i18n.setLanguage('th');
+  if(activitySummary('talk',rawMessage)!==rawMessage)throw new Error('Thai must preserve live messages');
+  i18n.setLanguage('en');
   const night = lightingAt(new Date(2026,9,21,0,5));
   if(night.hour!==0 || night.daylight!==0 || night.time!=='00:05') throw new Error('Local midnight conversion failed');
   if(lightingAt(new Date(2026,9,21,12,0)).daylight!==1) throw new Error('Local noon must be daylight');

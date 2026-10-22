@@ -166,7 +166,8 @@ http.createServer((req, res) => {
   } else {
     const pathname = new URL(req.url, 'http://localhost').pathname;
     const allowed = { '/': 'index.html', '/index.html': 'index.html', '/office.js': 'office.js', '/office-backgrounds.js': 'office-backgrounds.js', '/assets/roguelikeCity_magenta.png': 'assets/roguelikeCity_magenta.png' };
-    const file = allowed[pathname];
+    const localeFiles={'/i18n.js':'i18n.js','/locales/en.js':'locales/en.js','/locales/th.js':'locales/th.js'};
+    const file = allowed[pathname] || localeFiles[pathname];
     const iconFile = /^\/assets\/icons\/(coffee|book|edit|globe|message|terminal|users|play|info-box|sliders)\.svg$/.test(pathname) ? pathname.slice(1) : null;
     const target = file || iconFile;
     if (!target) { res.writeHead(404); res.end('Not found'); return; }

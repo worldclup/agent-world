@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="th">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -32,7 +32,7 @@
   #activity-sort { min-width: 0; padding: 5px 6px; border: 1px solid var(--line); border-radius: 0; background: var(--panel); color: var(--navy); font: 11px var(--font-body); cursor: pointer; }
   #activity-sort:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
   .background-setting { display: grid; gap: 5px; margin-top: 14px; font: 12px/1.6 var(--font-body); }
-  #background-theme { width: 100%; padding: 7px 8px; border: 1px solid var(--line); border-radius: 0; background: var(--panel); color: var(--navy); font: 12px var(--font-body); }
+  #background-theme, #language { width: 100%; padding: 7px 8px; border: 1px solid var(--line); border-radius: 0; background: var(--panel); color: var(--navy); font: 12px var(--font-body); }
   #background-theme:focus-visible { outline: 2px solid var(--blue); }
   .theme-select { position: relative; min-width: 0; font: 12px/1.6 var(--font-body); }
   .theme-select > summary { list-style: none; cursor: pointer; padding: 6px 26px 6px 9px; border: 1px solid var(--line); background: var(--panel); color: var(--navy); position: relative; white-space: nowrap; }
@@ -163,81 +163,87 @@
   <header><div class="logo">D</div><h1>DHITETA <span>AI</span> · AGENT OFFICE</h1></header>
   <div class="workspace">
   <div class="scene">
-    <canvas id="c" aria-label="แผนที่ Agent Office พร้อมสถานะกิจกรรม"></canvas>
-    <span id="local-time" aria-label="เวลาและช่วงวันตามเครื่องของคุณ"></span>
+    <canvas id="c" aria-label="แผนที่ Agent Office พร้อมสถานะกิจกรรม" data-i18n-aria-label="แผนที่ Agent Office พร้อมสถานะกิจกรรม"></canvas>
+    <span id="local-time" aria-label="เวลาและช่วงวันตามเครื่องของคุณ" data-i18n-aria-label="เวลาและช่วงวันตามเครื่องของคุณ"></span>
   </div>
-  <aside class="sidebar" aria-label="เครื่องมือและกิจกรรม Agent">
+  <aside class="sidebar" aria-label="เครื่องมือและกิจกรรม Agent" data-i18n-aria-label="เครื่องมือและกิจกรรม Agent">
     <div class="scene-controls">
     <button id="demo"><span class="icon" style="--icon:url('/assets/icons/play.svg')" aria-hidden="true"></span>DEMO</button>
-    <button id="open-settings" aria-label="ตั้งค่าฉาก" title="ตั้งค่าฉาก" aria-haspopup="dialog" aria-controls="scene-settings"><span class="icon" style="--icon:url('/assets/icons/sliders.svg')" aria-hidden="true"></span></button>
+    <button id="open-settings" aria-label="ตั้งค่าฉาก" data-i18n-aria-label="ตั้งค่าฉาก" title="ตั้งค่าฉาก" data-i18n-title="ตั้งค่าฉาก" aria-haspopup="dialog" aria-controls="scene-settings"><span class="icon" style="--icon:url('/assets/icons/sliders.svg')" aria-hidden="true"></span></button>
   <details class="guide">
-    <summary><span class="icon" style="--icon:url('/assets/icons/info-box.svg')" aria-hidden="true"></span>คู่มือ</summary>
+    <summary><span class="icon" style="--icon:url('/assets/icons/info-box.svg')" aria-hidden="true"></span><span data-i18n="คู่มือ">คู่มือ</span></summary>
     <div class="guide-content">
       <section aria-labelledby="guide-characters">
-        <h2 id="guide-characters">รู้จักตัวละคร</h2>
+        <h2 id="guide-characters"><span data-i18n="รู้จักตัวละคร">รู้จักตัวละคร</span></h2>
         <dl>
-          <dt style="color:#f0aa88"><span class="icon" style="--icon:url('/assets/icons/message.svg')" aria-hidden="true"></span>Claude</dt><dd>ตัวละครเสื้อสูทสีส้ม</dd>
-          <dt><span class="icon" style="--icon:url('/assets/icons/terminal.svg')" aria-hidden="true"></span>Codex</dt><dd>ตัวละครฮู้ดสีดำ</dd>
+          <dt style="color:#f0aa88"><span class="icon" style="--icon:url('/assets/icons/message.svg')" aria-hidden="true"></span>Claude</dt><dd><span data-i18n="ตัวละครเสื้อสูทสีส้ม">ตัวละครเสื้อสูทสีส้ม</span></dd>
+          <dt><span class="icon" style="--icon:url('/assets/icons/terminal.svg')" aria-hidden="true"></span>Codex</dt><dd><span data-i18n="ตัวละครฮู้ดสีดำ">ตัวละครฮู้ดสีดำ</span></dd>
         </dl>
-        <p>ทั้งสองเป็นสมาชิกประจำที่เห็นได้ทันที เมื่อมีกิจกรรมจาก session จริง ตัวละครจะเดินไปยังโซนงานที่เกี่ยวข้อง</p>
+        <p><span data-i18n="ทั้งสองเป็นสมาชิกประจำที่เห็นได้ทันที เมื่อมีกิจกรรมจาก session จริง ตัวละครจะเดินไปยังโซนงานที่เกี่ยวข้อง">ทั้งสองเป็นสมาชิกประจำที่เห็นได้ทันที เมื่อมีกิจกรรมจาก session จริง ตัวละครจะเดินไปยังโซนงานที่เกี่ยวข้อง</span></p>
       </section>
       <section aria-labelledby="guide-zones">
-        <h2 id="guide-zones">แต่ละโซนทำอะไร</h2>
+        <h2 id="guide-zones"><span data-i18n="แต่ละโซนทำอะไร">แต่ละโซนทำอะไร</span></h2>
         <dl>
-          <dt><span class="icon" style="--icon:url('/assets/icons/coffee.svg')" aria-hidden="true"></span>Lounge</dt><dd>พักผ่อนและเดินเล่นเมื่อไม่มีงาน</dd>
-          <dt><span class="icon" style="--icon:url('/assets/icons/book.svg')" aria-hidden="true"></span>Workspace · โต๊ะแถวหน้า</dt><dd>อ่านไฟล์และค้นหาในโปรเจกต์</dd>
-          <dt><span class="icon" style="--icon:url('/assets/icons/edit.svg')" aria-hidden="true"></span>Workspace · โต๊ะแถวหลัง</dt><dd>เขียนและแก้ไขไฟล์</dd>
-          <dt><span class="icon" style="--icon:url('/assets/icons/globe.svg')" aria-hidden="true"></span>จอใหญ่</dt><dd>ค้นหาข้อมูลบนเว็บ</dd>
-          <dt><span class="icon" style="--icon:url('/assets/icons/message.svg')" aria-hidden="true"></span>Meeting</dt><dd>คิด ตอบ และประสานงานกับ Agent</dd>
-          <dt><span class="icon" style="--icon:url('/assets/icons/terminal.svg')" aria-hidden="true"></span>Server</dt><dd>รันคำสั่งและตรวจสอบผลการทำงาน</dd>
+          <dt><span class="icon" style="--icon:url('/assets/icons/coffee.svg')" aria-hidden="true"></span>Lounge</dt><dd><span data-i18n="พักผ่อนและเดินเล่นเมื่อไม่มีงาน">พักผ่อนและเดินเล่นเมื่อไม่มีงาน</span></dd>
+          <dt><span class="icon" style="--icon:url('/assets/icons/book.svg')" aria-hidden="true"></span><span data-i18n="Workspace · โต๊ะแถวหน้า">Workspace · โต๊ะแถวหน้า</span></dt><dd><span data-i18n="อ่านไฟล์และค้นหาในโปรเจกต์">อ่านไฟล์และค้นหาในโปรเจกต์</span></dd>
+          <dt><span class="icon" style="--icon:url('/assets/icons/edit.svg')" aria-hidden="true"></span><span data-i18n="Workspace · โต๊ะแถวหลัง">Workspace · โต๊ะแถวหลัง</span></dt><dd><span data-i18n="เขียนและแก้ไขไฟล์">เขียนและแก้ไขไฟล์</span></dd>
+          <dt><span class="icon" style="--icon:url('/assets/icons/globe.svg')" aria-hidden="true"></span><span data-i18n="จอใหญ่">จอใหญ่</span></dt><dd><span data-i18n="ค้นหาข้อมูลบนเว็บ">ค้นหาข้อมูลบนเว็บ</span></dd>
+          <dt><span class="icon" style="--icon:url('/assets/icons/message.svg')" aria-hidden="true"></span>Meeting</dt><dd><span data-i18n="คิด ตอบ และประสานงานกับ Agent">คิด ตอบ และประสานงานกับ Agent</span></dd>
+          <dt><span class="icon" style="--icon:url('/assets/icons/terminal.svg')" aria-hidden="true"></span>Server</dt><dd><span data-i18n="รันคำสั่งและตรวจสอบผลการทำงาน">รันคำสั่งและตรวจสอบผลการทำงาน</span></dd>
         </dl>
       </section>
       <section aria-labelledby="guide-usage">
-        <h2 id="guide-usage">ดูสถานะและทดลองใช้งาน</h2>
-        <p><b>ชี้เมาส์ที่ตัวละครหรือป้ายชื่อ</b> เพื่อดูชื่อโปรเจกต์ สถานะ และงานล่าสุด</p>
-        <p><b>ปุ่ม DEMO</b> สร้างตัวละครสาธิตให้เดินสลับโซน โดยไม่เรียกใช้งาน AI จริง</p>
-        <p><b>ยังไม่เชื่อม session</b> หมายถึงตัวละครประจำที่ยังไม่ได้ผูกกับกิจกรรมจริง การเดินเล่นเป็นเพียงภาพเคลื่อนไหวและไม่ใช้ token</p>
-        <p><b>กล่องกิจกรรม</b> แสดงประวัติกิจกรรมล่าสุดที่ Office ได้รับ</p>
+        <h2 id="guide-usage"><span data-i18n="ดูสถานะและทดลองใช้งาน">ดูสถานะและทดลองใช้งาน</span></h2>
+        <p><b><span data-i18n="ชี้เมาส์ที่ตัวละครหรือป้ายชื่อ">ชี้เมาส์ที่ตัวละครหรือป้ายชื่อ</span></b> <span data-i18n="เพื่อดูชื่อโปรเจกต์ สถานะ และงานล่าสุด">เพื่อดูชื่อโปรเจกต์ สถานะ และงานล่าสุด</span></p>
+        <p><b><span data-i18n="ปุ่ม DEMO">ปุ่ม DEMO</span></b> <span data-i18n="สร้างตัวละครสาธิตให้เดินสลับโซน โดยไม่เรียกใช้งาน AI จริง">สร้างตัวละครสาธิตให้เดินสลับโซน โดยไม่เรียกใช้งาน AI จริง</span></p>
+        <p><b><span data-i18n="ยังไม่เชื่อม session">ยังไม่เชื่อม session</span></b> <span data-i18n="หมายถึงตัวละครประจำที่ยังไม่ได้ผูกกับกิจกรรมจริง การเดินเล่นเป็นเพียงภาพเคลื่อนไหวและไม่ใช้ token">หมายถึงตัวละครประจำที่ยังไม่ได้ผูกกับกิจกรรมจริง การเดินเล่นเป็นเพียงภาพเคลื่อนไหวและไม่ใช้ token</span></p>
+        <p><b><span data-i18n="กล่องกิจกรรม">กล่องกิจกรรม</span></b> <span data-i18n="แสดงประวัติกิจกรรมล่าสุดที่ Office ได้รับ">แสดงประวัติกิจกรรมล่าสุดที่ Office ได้รับ</span></p>
       </section>
     </div>
   </details>
     </div>
-  <div class="bar"><span id="status">กำลังเชื่อมต่อ…</span></div>
+  <div class="bar"><span id="status"><span data-i18n="กำลังเชื่อมต่อ…">กำลังเชื่อมต่อ…</span></span></div>
   <div class="activity-toolbar">
-    <h2 class="activity-title">กิจกรรมล่าสุด</h2>
-    <select id="activity-sort" aria-label="เรียงลำดับกิจกรรม">
-      <option value="newest">ใหม่ไปเก่า</option>
-      <option value="oldest">เก่าไปใหม่</option>
+    <h2 class="activity-title"><span data-i18n="กิจกรรมล่าสุด">กิจกรรมล่าสุด</span></h2>
+    <select id="activity-sort" aria-label="เรียงลำดับกิจกรรม" data-i18n-aria-label="เรียงลำดับกิจกรรม">
+      <option value="newest" data-i18n="ใหม่ไปเก่า">ใหม่ไปเก่า</option>
+      <option value="oldest" data-i18n="เก่าไปใหม่">เก่าไปใหม่</option>
     </select>
   </div>
-  <ul id="log" aria-label="กิจกรรมล่าสุดของ Agent"></ul>
+  <ul id="log" aria-label="กิจกรรมล่าสุดของ Agent" data-i18n-aria-label="กิจกรรมล่าสุดของ Agent"></ul>
   </aside>
   </div>
   <aside id="agent-tooltip" role="tooltip" hidden><strong id="agent-tooltip-name"></strong><p id="agent-tooltip-state"></p><p id="agent-tooltip-task"></p></aside>
 </main>
 <dialog id="scene-settings" aria-labelledby="settings-title">
-  <div class="settings-heading"><h2 id="settings-title">ตั้งค่าฉาก</h2><button id="close-settings" aria-label="ปิดและยกเลิก">×</button></div>
-  <fieldset><legend>รูปแบบออฟฟิศ</legend><div class="building-options">
-    <label class="building-card"><input type="radio" name="layout" id="layout-home" value="home"><b>Home Office</b><small>โต๊ะทำงาน 2 จุด · วิวบ้านและชุมชนสีเขียว</small></label>
-    <label class="building-card"><input type="radio" name="layout" id="layout-medium" value="medium"><b>Office ขนาดกลาง</b><small>โต๊ะทำงาน 6 จุด · วิวตึกข้างเคียง ชั้น 5–7</small></label>
-    <label class="building-card"><input type="radio" name="layout" id="layout-large" value="large" checked><b>Office ขนาดใหญ่</b><small>โต๊ะทำงาน 10 จุด · ห้องทีม / มุมสงบ / ครัว · วิวชั้น 30</small></label>
-  </div><p>แสดงตัวอย่างทันที เมื่อเปลี่ยนผัง AI จะเริ่มเดินใหม่จากทางเข้า โดยไม่ล้าง session หรือกิจกรรม กดยกเลิกเพื่อคืนผังเดิม</p></fieldset>
-  <p>เลือกสไตล์ตึกแล้วพื้นหลังจะจับคู่ให้ทันที คุณยังปรับบรรยากาศเองได้ แสงเปลี่ยนตามเวลาเครื่องของคุณ</p>
-  <fieldset><legend>สไตล์ตึก</legend><div class="building-options">
-    <label class="building-card"><div class="building-preview" aria-hidden="true"></div><input type="radio" name="building" value="modern" id="building-modern"><b>Modern Office</b><small>ผนังขาว กระจกฟ้า เส้นสายเรียบ</small></label>
-    <label class="building-card"><div class="building-preview preview-cyber" aria-hidden="true"></div><input type="radio" name="building" value="cyber" id="building-cyber"><b>Cyberpunk</b><small>โครงตึกเข้ม ไฟ cyan–magenta</small></label>
-    <label class="building-card"><div class="building-preview preview-loft" aria-hidden="true"></div><input type="radio" name="building" value="loft" id="building-loft"><b>Industrial Loft</b><small>อิฐ เหล็กดำ ท่อเปลือย ไฟอุ่น</small></label>
-    <label class="building-card"><div class="building-preview preview-garden" aria-hidden="true"></div><input type="radio" name="building" value="garden" id="building-garden"><b>Sky Garden</b><small>สีอ่อน ไม้ และสวนบนอาคาร</small></label>
+  <div class="settings-heading"><h2 id="settings-title"><span data-i18n="ตั้งค่าฉาก">ตั้งค่าฉาก</span></h2><button id="close-settings" aria-label="ปิดและยกเลิก" data-i18n-aria-label="ปิดและยกเลิก">×</button></div>
+  <label class="background-setting"><span data-i18n="ภาษา">Language</span><select id="language"><option value="en">English</option><option value="th" data-i18n="ไทย">ไทย</option></select></label>
+  <fieldset><legend><span data-i18n="รูปแบบออฟฟิศ">รูปแบบออฟฟิศ</span></legend><div class="building-options">
+    <label class="building-card"><input type="radio" name="layout" id="layout-home" value="home"><b>Home Office</b><small><span data-i18n="โต๊ะทำงาน 2 จุด · วิวบ้านและชุมชนสีเขียว">โต๊ะทำงาน 2 จุด · วิวบ้านและชุมชนสีเขียว</span></small></label>
+    <label class="building-card"><input type="radio" name="layout" id="layout-medium" value="medium"><b><span data-i18n="Office ขนาดกลาง">Office ขนาดกลาง</span></b><small><span data-i18n="โต๊ะทำงาน 6 จุด · วิวตึกข้างเคียง ชั้น 5–7">โต๊ะทำงาน 6 จุด · วิวตึกข้างเคียง ชั้น 5–7</span></small></label>
+    <label class="building-card"><input type="radio" name="layout" id="layout-large" value="large" checked><b><span data-i18n="Office ขนาดใหญ่">Office ขนาดใหญ่</span></b><small><span data-i18n="โต๊ะทำงาน 10 จุด · ห้องทีม / มุมสงบ / ครัว · วิวชั้น 30">โต๊ะทำงาน 10 จุด · ห้องทีม / มุมสงบ / ครัว · วิวชั้น 30</span></small></label>
+  </div><p><span data-i18n="แสดงตัวอย่างทันที เมื่อเปลี่ยนผัง AI จะเริ่มเดินใหม่จากทางเข้า โดยไม่ล้าง session หรือกิจกรรม กดยกเลิกเพื่อคืนผังเดิม">แสดงตัวอย่างทันที เมื่อเปลี่ยนผัง AI จะเริ่มเดินใหม่จากทางเข้า โดยไม่ล้าง session หรือกิจกรรม กดยกเลิกเพื่อคืนผังเดิม</span></p></fieldset>
+  <p><span data-i18n="เลือกสไตล์ตึกแล้วพื้นหลังจะจับคู่ให้ทันที คุณยังปรับบรรยากาศเองได้ แสงเปลี่ยนตามเวลาเครื่องของคุณ">เลือกสไตล์ตึกแล้วพื้นหลังจะจับคู่ให้ทันที คุณยังปรับบรรยากาศเองได้ แสงเปลี่ยนตามเวลาเครื่องของคุณ</span></p>
+  <fieldset><legend><span data-i18n="สไตล์ตึก">สไตล์ตึก</span></legend><div class="building-options">
+    <label class="building-card"><div class="building-preview" aria-hidden="true"></div><input type="radio" name="building" value="modern" id="building-modern"><b>Modern Office</b><small><span data-i18n="ผนังขาว กระจกฟ้า เส้นสายเรียบ">ผนังขาว กระจกฟ้า เส้นสายเรียบ</span></small></label>
+    <label class="building-card"><div class="building-preview preview-cyber" aria-hidden="true"></div><input type="radio" name="building" value="cyber" id="building-cyber"><b>Cyberpunk</b><small><span data-i18n="โครงตึกเข้ม ไฟ cyan–magenta">โครงตึกเข้ม ไฟ cyan–magenta</span></small></label>
+    <label class="building-card"><div class="building-preview preview-loft" aria-hidden="true"></div><input type="radio" name="building" value="loft" id="building-loft"><b>Industrial Loft</b><small><span data-i18n="อิฐ เหล็กดำ ท่อเปลือย ไฟอุ่น">อิฐ เหล็กดำ ท่อเปลือย ไฟอุ่น</span></small></label>
+    <label class="building-card"><div class="building-preview preview-garden" aria-hidden="true"></div><input type="radio" name="building" value="garden" id="building-garden"><b>Sky Garden</b><small><span data-i18n="สีอ่อน ไม้ และสวนบนอาคาร">สีอ่อน ไม้ และสวนบนอาคาร</span></small></label>
   </div></fieldset>
-  <label class="background-setting" for="background-theme">บรรยากาศพื้นหลัง
+  <label class="background-setting" for="background-theme"><span data-i18n="โทนสี">Color theme</span>
     <select id="background-theme">
-      <option value="rain">Bangkok after rain · หลังฝน</option>
-      <option value="sunset">Sunset rooftop · ฟ้าพีชม่วง</option>
-      <option value="neon">Neon Bangkok · ไฟเมือง</option>
+      <option value="rain" data-i18n="ฟ้าเย็น">Cool Blue</option>
+      <option value="sunset" data-i18n="พีชยามเย็น">Peach Sunset</option>
+      <option value="neon" data-i18n="ม่วงนีออน">Neon Purple</option>
+      <option value="sage" data-i18n="เขียวเซจ">Sage Green</option>
+      <option value="sand" data-i18n="ครีมทราย">Warm Sand</option>
     </select>
   </label>
-  <div class="settings-actions"><button id="cancel-settings">ยกเลิก</button><button id="save-settings">บันทึก</button></div>
+  <div class="settings-actions"><button id="cancel-settings"><span data-i18n="ยกเลิก">ยกเลิก</span></button><button id="save-settings"><span data-i18n="บันทึก">บันทึก</span></button></div>
 </dialog>
+<script src="/locales/en.js"></script>
+<script src="/locales/th.js"></script>
+<script src="/i18n.js"></script>
 <script src="/office-backgrounds.js"></script>
 <script src="/office.js"></script>
 </body>

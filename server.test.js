@@ -50,5 +50,12 @@ async function checkBackgroundScript() {
     });
   });
   console.log('PASS: background renderer loads before office and is served as JavaScript.');
+  for(const url of ['/locales/en.js','/locales/th.js','/i18n.js'])await new Promise((resolve,reject)=>{
+    let status,headers;
+    request({url},{writeHead(code,value){status=code;headers=value;},end(body){
+      try {assert.equal(status,200);assert.match(headers['Content-Type'],/javascript/);assert.ok(String(body).length>0);resolve();}catch(error){reject(error);}
+    }});
+  });
+  console.log('PASS: both language catalogs and translation runtime are served.');
 }
 checkBackgroundScript().catch(error=>{console.error(error);process.exitCode=1;});

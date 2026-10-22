@@ -16,7 +16,7 @@ function updateLighting() {
   const now = new Date(), minute = Math.floor(now.getTime()/60000);
   if (minute === lightingMinute) return;
   lightingMinute = minute; lighting = lightingAt(now);
-  document.getElementById('local-time').textContent = `${lighting.time} น. · ${lighting.label}`;
+  document.getElementById('local-time').textContent = `${lighting.time} · ${i18n.t(lighting.label)}`;
   const mix = (night, day) => '#' + [1,3,5].map(i => Math.round(parseInt(night.slice(i,i+2),16)*(1-lighting.daylight)+parseInt(day.slice(i,i+2),16)*lighting.daylight).toString(16).padStart(2,'0')).join('');
   C.sky = mix('#1c315c','#9fd0f5'); C.sky2 = mix('#344b80','#c4e3fa');
 }
@@ -116,7 +116,8 @@ const zones = {
   think: [[2,3],[6,4],[3,2],[4,5],[2,9],[6,11]], idle: [[12,12],[20,11],[21,14],[11,19]],
 };
 zones.talk = zones.think; zones.agent = zones.think;
-const labels = { read:'อ่าน / ค้นหา', write:'แก้ไขไฟล์', web:'ค้นเว็บ', bash:'รันคำสั่ง', think:'กำลังคิด', talk:'กำลังตอบ', agent:'ประสานงาน', idle:'พักผ่อน' };
+const labelKeys = { read:'อ่าน / ค้นหา', write:'แก้ไขไฟล์', web:'ค้นเว็บ', bash:'รันคำสั่ง', think:'กำลังคิด', talk:'กำลังตอบ', agent:'ประสานงาน', idle:'พักผ่อน' };
+const labels=new Proxy(labelKeys,{get:(target,key)=>i18n.t(target[key])});
 const icons = { read:'book', write:'edit', web:'globe', bash:'terminal', think:'message', talk:'message', agent:'users', idle:'coffee' };
 const iconImages = Object.fromEntries([...new Set(Object.values(icons))].map(name => {
   const img = new Image(); img.src = `/assets/icons/${name}.svg`; return [name, img];
@@ -142,12 +143,12 @@ function route(from, to) {
 }
 function activitySummary(state, raw) {
   const text = String(raw || '').trim();
-  if (state === 'idle') return 'จบงานแล้ว กำลังพักผ่อน';
+  if (state === 'idle') return i18n.t('จบงานแล้ว กำลังพักผ่อน');
   const technical = /Context from my IDE|#.*Active File|tools\.|exec_command|apply_patch|"cmd"|^\s*(?:const |await |\{|# Context)/.test(text);
-  if (technical || !text) return ({ think:'กำลังพิจารณาคำขอของคุณ', talk:'กำลังอธิบายผลการทำงาน', read:'กำลังตรวจสอบไฟล์และข้อมูลในโปรเจกต์', write:'กำลังปรับปรุงไฟล์ในโปรเจกต์', bash:'กำลังเรียกใช้คำสั่งหรือเครื่องมือ', web:'กำลังค้นหาข้อมูลบนเว็บ', agent:'กำลังประสานงานกับ Agent' })[state] || 'กำลังทำงาน';
-  if (state === 'think') return `รับคำขอ: ${text}`;
-  if (['read','write'].includes(state) && /[\\/]|\.\w{1,5}$/.test(text)) return `${state==='read'?'ตรวจสอบ':'แก้ไข'}ไฟล์: ${text}`;
-  if (state === 'bash') return 'กำลังเรียกใช้คำสั่งหรือเครื่องมือ';
+  if (technical || !text) return i18n.t(({ think:'กำลังพิจารณาคำขอของคุณ', talk:'กำลังอธิบายผลการทำงาน', read:'กำลังตรวจสอบไฟล์และข้อมูลในโปรเจกต์', write:'กำลังปรับปรุงไฟล์ในโปรเจกต์', bash:'กำลังเรียกใช้คำสั่งหรือเครื่องมือ', web:'กำลังค้นหาข้อมูลบนเว็บ', agent:'กำลังประสานงานกับ Agent' })[state] || 'กำลังทำงาน');
+  if (state === 'think') return `${i18n.t('รับคำขอ')}: ${text}`;
+  if (['read','write'].includes(state) && /[\\/]|\.\w{1,5}$/.test(text)) return `${i18n.t(state==='read'?'ตรวจสอบไฟล์':'แก้ไขไฟล์')}: ${text}`;
+  if (state === 'bash') return i18n.t('กำลังเรียกใช้คำสั่งหรือเครื่องมือ');
   return text;
 }
 const activityEntries = [];
@@ -161,6 +162,7 @@ function renderActivities() {
 }
 document.getElementById('activity-sort').onchange=()=>{renderActivities();document.getElementById('log').scrollTop=0;};
 function addActivity(a, ev) {
+  a={...a};
   const li = document.createElement('li');li.className=`activity activity-${a.state}`;
   const head=document.createElement('div');head.className='activity-head';
   const name=document.createElement('b');name.className=a.kind==='codex'?'agent-codex':'agent-claude';name.textContent=a.kind==='codex'?'Codex':'Claude';
@@ -171,14 +173,19 @@ function addActivity(a, ev) {
   head.append(identity,time);
   const badge=document.createElement('span');badge.className='activity-badge';
   const icon=document.createElement('img');icon.src=`/assets/icons/${icons[a.state] || 'message'}.svg`;icon.alt='';
-  badge.append(icon,labels[a.state] || 'ทำงาน');
+  badge.append(icon,labels[a.state] || i18n.t('ทำงาน'));
   const summary=document.createElement('p');summary.textContent=activitySummary(a.state,a.text);
   li.append(head,badge,summary);
   if(a.text && summary.textContent!==a.text) {
     const details=document.createElement('details'), toggle=document.createElement('summary'), raw=document.createElement('pre');
-    toggle.textContent='รายละเอียด';raw.textContent=a.text;details.append(toggle,raw);li.append(details);
+    toggle.textContent=i18n.t('รายละเอียด');raw.textContent=a.text;details.append(toggle,raw);li.append(details);
   }
-  activityEntries.push({ node:li, time:Number.isFinite(ev.t)?ev.t:Date.now(), sequence:activitySequence++ });
+  const translate=()=>{
+    badge.replaceChildren(icon,labels[a.state] || i18n.t('ทำงาน'));
+    summary.textContent=activitySummary(a.state,a.text);
+    const toggle=li.querySelector?.('summary');if(toggle)toggle.textContent=i18n.t('รายละเอียด');
+  };
+  activityEntries.push({ translate, node:li, time:Number.isFinite(ev.t)?ev.t:Date.now(), sequence:activitySequence++ });
   activityEntries.sort((a,b)=>a.time-b.time || a.sequence-b.sequence);
   if(activityEntries.length>60)activityEntries.splice(0,activityEntries.length-60);
   renderActivities();
@@ -395,6 +402,8 @@ const BACKGROUNDS = {
   rain: { sky:['#12263e','#8ab6ca'], horizon:['#40596c','#d1e0df'], base:['#1c3349','#a1b9c4'], near:['#203e52','#7c9da9'], far:['#425d70','#b0c8cf'], accent:'#efce91' },
   sunset: { sky:['#241f46','#b5a2d4'], horizon:['#73516f','#f3bd9e'], base:['#332d50','#c7a5b5'], near:['#403c63','#9a8cae'], far:['#685a7f','#c8afc8'], accent:'#ffe0a0' },
   neon: { sky:['#130f32','#8babc9'], horizon:['#34234e','#c5bfd8'], base:['#171c3e','#8a9fba'], near:['#25203f','#6c7e9e'], far:['#3b3559','#a6afca'], accent:'#76e4ef' },
+  sage: { sky:['#172d2a','#a8c5b0'], horizon:['#415b4c','#dce6cf'], base:['#253b32','#b7c8ac'], near:['#304b3c','#7f9b83'], far:['#506b59','#c0d1b8'], accent:'#e4d9a0' },
+  sand: { sky:['#30283a','#d7c3a3'], horizon:['#705d58','#f2dfbc'], base:['#3e3435','#cdbb9e'], near:['#534747','#aa9275'], far:['#7c6b60','#dfceb0'], accent:'#ffda94' },
 };
 let backgroundTheme='rain';
 try { const saved=localStorage.getItem('office-background'); if(BACKGROUNDS[saved])backgroundTheme=saved; setBuilding(localStorage.getItem('office-building')); } catch {}
@@ -407,14 +416,14 @@ backgroundSelect.onchange=()=>{
 const settingsDialog=document.getElementById('scene-settings');
 let settingsSnapshot=null;
 function openSettings() {
-  settingsSnapshot={building:buildingTheme,background:backgroundTheme,layout:officeLayout};
+  settingsSnapshot={building:buildingTheme,background:backgroundTheme,layout:officeLayout,language:i18n.language};
   backgroundSelect.value=backgroundTheme;
   backgroundSelect.refreshAppearance?.();
   Object.keys(BUILDINGS).forEach(name=>{document.getElementById(`building-${name}`).checked=name===buildingTheme;});
   settingsDialog.showModal();
 }
 function cancelSettings() {
-  if(settingsSnapshot){if(officeLayout!==settingsSnapshot.layout)setLayout(settingsSnapshot.layout);setBuilding(settingsSnapshot.building);backgroundTheme=settingsSnapshot.background;backgroundSelect.value=backgroundTheme;backgroundSelect.refreshAppearance?.();settingsSnapshot=null;}
+  if(settingsSnapshot){if(officeLayout!==settingsSnapshot.layout)setLayout(settingsSnapshot.layout);setBuilding(settingsSnapshot.building);backgroundTheme=settingsSnapshot.background;backgroundSelect.value=backgroundTheme;backgroundSelect.refreshAppearance?.();i18n.setLanguage(settingsSnapshot.language);settingsSnapshot=null;}
   settingsDialog.close();
 }
 const MATCHING_BACKGROUNDS = { modern:'rain', cyber:'neon', loft:'sunset', garden:'rain' };
@@ -1112,13 +1121,13 @@ function updateTooltip() {
   tooltip.hidden = !zone&&!a;
   if (!zone&&!a) return;
   if(zone) {
-    document.getElementById('agent-tooltip-name').textContent=zoneSign(zone).label;
-    document.getElementById('agent-tooltip-state').textContent=zoneSign(zone).description;
+    document.getElementById('agent-tooltip-name').textContent=i18n.t(zoneSign(zone).label);
+    document.getElementById('agent-tooltip-state').textContent=i18n.t(zoneSign(zone).description);
     document.getElementById('agent-tooltip-task').textContent='';
   } else {
-  document.getElementById('agent-tooltip-name').textContent = `${a.kind === 'codex' ? 'Codex' : 'Claude'} · ${a.project}`;
-  document.getElementById('agent-tooltip-state').textContent = a.resident && !a.sessionSid ? 'สมาชิกประจำ · ยังไม่เชื่อม session' : `สถานะ: ${labels[a.state] || 'ทำงาน'} (จากกิจกรรมล่าสุด)`;
-  document.getElementById('agent-tooltip-task').textContent = a.sleeping ? `นอนพัก · ${upperBedAt(a) ? 'เตียงชั้นบน' : 'เตียงชั้นล่าง'} (ภาพเคลื่อนไหวเท่านั้น)` : a.sleepSpot ? 'กำลังเดินไปพักงีบ' : a.text || (a.state === 'idle' ? 'เดินเล่น / พักใน Lounge' : 'กำลังทำงาน');
+  document.getElementById('agent-tooltip-name').textContent = `${a.kind === 'codex' ? 'Codex' : 'Claude'} · ${a.resident&&!a.sessionSid?i18n.t(a.project):a.project}`;
+  document.getElementById('agent-tooltip-state').textContent = a.resident && !a.sessionSid ? i18n.t('สมาชิกประจำ · ยังไม่เชื่อม session') : `${i18n.t('สถานะ')}: ${labels[a.state] || i18n.t('ทำงาน')} (${i18n.t('จากกิจกรรมล่าสุด')})`;
+  document.getElementById('agent-tooltip-task').textContent = a.sleeping ? `${i18n.t('นอนพัก')} · ${i18n.t(upperBedAt(a) ? 'เตียงชั้นบน' : 'เตียงชั้นล่าง')} (${i18n.t('ภาพเคลื่อนไหวเท่านั้น')})` : a.sleepSpot ? i18n.t('กำลังเดินไปพักงีบ') : (a.resident&&!a.sessionSid?i18n.t(a.text):a.text) || i18n.t(a.state === 'idle' ? 'เดินเล่น / พักใน Lounge' : 'กำลังทำงาน');
   }
   tooltip.style.left = `${Math.max(8,Math.min(pointer.x+14,window.innerWidth-tooltip.offsetWidth-8))}px`;
   tooltip.style.top = `${Math.max(8,Math.min(pointer.y+14,window.innerHeight-tooltip.offsetHeight-8))}px`;
@@ -1172,21 +1181,23 @@ function frame(t) {
   }
   drawScene(t);
   updateTooltip();
-  if(!agents.size){ctx.font='bold 12px "Pixelify Sans", "Noto Sans Thai", sans-serif';const m='รอ Claude / Codex เข้างาน หรือกด DEMO',w=ctx.measureText(m).width+20;
+  if(!agents.size){ctx.font='bold 12px "Pixelify Sans", "Noto Sans Thai", sans-serif';const m=i18n.t('รอ Claude / Codex เข้างาน หรือกด DEMO'),w=ctx.measureText(m).width+20;
     const [mx,my]=iso(16,11);rect(mx-w/2,my-12,w,22,'rgba(15,42,82,.88)');ctx.fillStyle='#fff';ctx.textAlign='center';ctx.fillText(m,mx,my+3);ctx.textAlign='start';}
   requestAnimationFrame(frame);
 }
 addResidents();
 requestAnimationFrame(frame);
 const status=document.getElementById('status'),es=new EventSource('/events');
-es.onopen=()=>{status.dataset.connection='online';status.textContent='เชื่อมต่อแล้ว: Claude + Codex';};
-es.onerror=()=>{status.dataset.connection='offline';status.textContent='เชื่อมต่อไม่ได้ กรุณารัน node server.js';};
-es.onmessage=e=>{try{apply(JSON.parse(e.data));}catch{status.textContent='ได้รับ event ที่อ่านไม่ได้';}};
+es.onopen=()=>{status.dataset.connection='online';setConnectionText('เชื่อมต่อแล้ว: Claude + Codex');};
+es.onerror=()=>{status.dataset.connection='offline';setConnectionText('เชื่อมต่อไม่ได้ กรุณารัน node server.js');};
+es.onmessage=e=>{try{apply(JSON.parse(e.data));}catch{setConnectionText('ได้รับ event ที่อ่านไม่ได้');}};
+let connectionText='กำลังเชื่อมต่อ…';
+function setConnectionText(key){connectionText=key;status.textContent=i18n.t(key);}
 let demoTimers=[];
 function enhanceSelect(select, label) {
   if (!select.options) return;
   const dropdown=document.createElement('details');dropdown.className='theme-select';
-  const trigger=document.createElement('summary');trigger.setAttribute('aria-label',label);
+  const trigger=document.createElement('summary');trigger.setAttribute('aria-label',i18n.t(label));
   const menu=document.createElement('div');menu.className='theme-select-options';
   const buttons=[...select.options].map(option=>{
     const button=document.createElement('button');button.type='button';button.textContent=option.textContent;
@@ -1194,6 +1205,8 @@ function enhanceSelect(select, label) {
     menu.append(button);return button;
   });
   select.refreshAppearance=()=>{
+    trigger.setAttribute('aria-label',i18n.t(label));
+    buttons.forEach((button,i)=>button.textContent=select.options[i].textContent);
     trigger.textContent=select.options[select.selectedIndex]?.textContent || '';
     buttons.forEach((button,i)=>button.setAttribute('aria-pressed',String(select.options[i].selected)));
   };
@@ -1212,7 +1225,15 @@ function enhanceSelect(select, label) {
   document.addEventListener('pointerdown',e=>{if(!dropdown.contains(e.target))dropdown.open=false;});
 }
 enhanceSelect(document.getElementById('activity-sort'),'เรียงลำดับกิจกรรม');
-enhanceSelect(backgroundSelect,'บรรยากาศพื้นหลัง');
+enhanceSelect(backgroundSelect,'โทนสี');
+enhanceSelect(document.getElementById('language'),'ภาษา');
+i18n.onChange(()=>{
+  setConnectionText(connectionText);
+  backgroundSelect.refreshAppearance?.();document.getElementById('activity-sort').refreshAppearance?.();
+  document.getElementById('language').refreshAppearance?.();
+  for(const entry of activityEntries)entry.translate();
+  lightingMinute='';updateLighting();updateTooltip();
+});
 document.getElementById('demo').onclick=()=>{
   demoTimers.forEach(clearTimeout);demoTimers=[];
   const states=['idle','write','think','bash'];
