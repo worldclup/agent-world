@@ -52,8 +52,9 @@ const AREAS = [
   { x: 20, y: 1, w: 5, h: 6, floor: 'uxui', title: 'UX/UI' },
   { x: 25, y: 10, w: 6, h: 4, floor: 'tile', title: 'TEAM OFFICE' },
   { x: 1, y: 8, w: 7, h: 5, floor: 'carpet', title: 'HUDDLE' },
-  { x: 25, y: 14, w: 6, h: 3, floor: 'carpet', title: 'FOCUS' },
-  { x: 25, y: 19, w: 6, h: 2, floor: 'wood', title: 'LOCKERS' },
+  { x: 25, y: 14, w: 3, h: 3, floor: 'carpet', title: 'FOCUS' },
+  { x: 28, y: 14, w: 3, h: 3, floor: 'carpet', title: 'FOCUS 2' },
+  { x: 9, y: 19, w: 5, h: 2, floor: 'wood', title: 'LOCKERS' },
   { x: 1, y: 13, w: 7, h: 6, floor: 'wood', title: 'KITCHEN' },
   { x: 11, y: 10, w: 12, h: 7, floor: 'wood', title: 'LOUNGE' },
   { x: 25, y: 1, w: 6, h: 9, floor: 'dark', title: 'SERVER' },
@@ -94,9 +95,14 @@ object(1,8,8,1,'glass',{edge:true,joinAt:'end'});
 object(8,11,1,5,'glass',{edge:true});object(8,18,1,1,'glass',{edge:true});
 object(1,13,8,1,'glass',{edge:true,joinAt:'end'});
 object(2,10,3,2,'diningTable');deco(1,10,'chair');deco(5,11,'chair');
-object(26,15,2,1,'readingDesk');object(29,15,2,1,'readingDesk');object(30,16,1,1,'bookcase');
+object(26,15,2,1,'readingDesk');object(29,15,2,1,'readingDesk');
 deco(26,16,'chair');deco(29,16,'chair');
-object(26,20,4,1,'locker');object(30,20,1,1,'locker');
+for(const x of [25,28]) {
+  object(x,14,1,4,'glass',{edge:true,trimEnd:true});
+  object(x,17,1,1,'glass',{edge:true,axis:'x',joinAt:'start'});
+}
+object(9,20,4,1,'locker');object(13,20,1,1,'locker');
+object(26,20,4,1,'bookcase');
 object(30,1,1,1,'plant');
 // meeting
 object(3,3,3,2,'table');
@@ -108,7 +114,7 @@ object(27,6,3,1,'controlDesk');deco(27,7,'chair');
 const zones = {
   read: [[11,3],[14,3],[17,3],[22,3],[26,12],[26,16],[29,16]], write: [[11,6],[14,6],[17,6],[22,6],[29,12]],
   web: [[30,12],[28,12]], bash: [[27,7],[28,4]],
-  think: [[2,3],[6,4],[3,2],[4,5],[2,9],[6,11]], idle: [[12,12],[18,13],[20,12],[22,14],[27,19]],
+  think: [[2,3],[6,4],[3,2],[4,5],[2,9],[6,11]], idle: [[12,12],[18,13],[20,12],[22,14],[11,19]],
 };
 zones.talk = zones.think; zones.agent = zones.think;
 const labels = { read:'อ่าน / ค้นหา', write:'แก้ไขไฟล์', web:'ค้นเว็บ', bash:'รันคำสั่ง', think:'กำลังคิด', talk:'กำลังตอบ', agent:'ประสานงาน', idle:'พักผ่อน' };
@@ -211,7 +217,7 @@ function expireAgents(now) {
   }
 }
 
-const roamSpots = [[12,12],[18,13],[20,12],[22,14],[12,14],[19,14],[9,15],[24,18],[27,19], ...barSeats];
+const roamSpots = [[12,12],[18,13],[20,12],[22,14],[12,14],[19,14],[9,15],[24,18],[11,19], ...barSeats];
 const OFFICE_LAYOUTS={home:{cols:18,rows:16},medium:{cols:26,rows:20},large:{cols:32,rows:22}};
 let officeLayout='large';
 const largePlan={objects:objects.map(o=>({...o})),areas:AREAS.map(a=>({...a})),blocked:[...blocked],zones:JSON.parse(JSON.stringify(zones)),bar:barSeats.map(p=>[...p]),nap:napSpots.map(p=>[...p]),roam:roamSpots.map(p=>[...p])};
@@ -571,7 +577,8 @@ const layoutSigns={
     'QUIET ROOM':{x:8,y:19.5,h:20,slope:-.5,label:'BEDROOM',description:'พักผ่อนและนอนพักบนเตียงสองชั้น'},
     SERVER:{x:25,y:2,h:20,label:'SERVER',description:'ดูแลเซิร์ฟเวอร์และตรวจสถานะคำสั่ง'},
     HUDDLE:{x:8,y:8.5,h:20,slope:-.5,label:'HUDDLE ROOM',description:'ห้องประชุมเล็กสำหรับคุยงานกลุ่มย่อย'},
-    FOCUS:{x:31,y:15.5,h:22,slope:-.5,label:'FOCUS ROOM',description:'โต๊ะอ่านหนังสือและทำงานเงียบ ๆ'},
+    FOCUS:{x:25,y:15,h:20,slope:-.5,label:'FOCUS ROOM 1',description:'ห้องทำงานเงียบส่วนตัว ห้องที่ 1'},
+    'FOCUS 2':{x:28,y:15,h:20,slope:-.5,label:'FOCUS ROOM 2',description:'ห้องทำงานเงียบส่วนตัว ห้องที่ 2'},
     'TEAM OFFICE':{x:25,y:10.75,h:20,slope:-.5,label:'TEAM OFFICE',description:'ห้องทำงานทีมย่อย ใกล้พื้นที่ทำงานหลัก'},
   },
 };
@@ -805,7 +812,7 @@ function drawObject(o, t) {
     case 'glass': {
       const offset = o.edge ? 0 : .45;
       const length = o.joinAt==='end' ? w-1+.16 : w+(o.edge ? .1 : 0);
-      const thin = w > d ? [x, y + offset, length, .1] : [x + offset, y, .1, o.trimEnd ? d-1+.16 : d];
+      const thin = w > d || o.axis==='x' ? [x, y + offset, length, .1] : [x + offset, y, .1, o.trimEnd ? d-1+.16 : d];
       box(...thin, 30, C.glassTop, C.glass, C.glass);
       box(...thin, 3, C.navy, C.blue3, C.blue3);
       box(thin[0], thin[1], thin[2], thin[3], 2, C.navy, C.navy, C.navy, 30);
