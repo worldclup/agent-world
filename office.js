@@ -500,6 +500,19 @@ function drawBuildingExterior() {
     face([iso(maxX-.1,maxY),iso(maxX,maxY)],0,depth,'#ed83db');
     face([iso(maxX,maxY-.15),iso(maxX,maxY)],0,depth,'#5de6e6');
   }
+  // The illuminated billboard fits between the first two exterior window rows.
+  const signEnd=Math.min(12,maxX-2),signEdge=[iso(2,maxY),iso(signEnd,maxY)];
+  ctx.save();ctx.shadowColor=C.sky;ctx.shadowBlur=lighting.daylight<.5?10:4;
+  face(signEdge,59,86,C.sky);
+  ctx.shadowBlur=0;
+  face([iso(2.15,maxY),iso(signEnd-.15,maxY)],61,84,C.navy);
+  const [sx,sy]=up(iso(2.6,maxY),-66);
+  ctx.translate(sx,sy);ctx.transform(1,.5,0,1,0,0);
+  ctx.shadowColor=C.sky;ctx.shadowBlur=lighting.daylight<.5?8:3;
+  rect(0,0,10,13,C.sky);rect(3,3,4,7,C.white);
+  ctx.font='bold 7px monospace';ctx.textAlign='left';ctx.fillStyle=C.white;
+  ctx.fillText('DHITETA AI',15,10);
+  ctx.restore();
 }
 
 function drawCompactRoom(t) {
@@ -522,7 +535,6 @@ function drawCompactRoom(t) {
     wallQuad(side,a,b,22,59,C.navy);wallQuad(side,a+.15,b-.15,24,57,C.sky);wallQuad(side,a+.15,b-.15,43,57,C.sky2);
     for(let m=a+1;m<b;m++)wallQuad(side,m-.04,m+.04,24,57,C.navy);
   }
-  wallQuad('r',7,10,31,53,C.navy);wallText('r',7.2,39,'AI OFFICE','bold 5px monospace','#fff');
   {
     // Both compact layouts place the meeting room against these back walls.
     wallQuad('l',2,5,20,59,C.navy);wallQuad('l',2.15,4.85,22,57,C.blue3);
@@ -661,9 +673,6 @@ function drawRoom(t) {
     for (let m = a + 1; m < b; m++) wallQuad(side, m - .05, m + .05, 24, 58, C.navy);
   };
   win('r', 2, 5); win('r', 6, 9); win('r', 13, 15); win('l', 13, 16);
-  // company logo
-  wallQuad('r', 16, 25.8, 34, 60, C.navy); wallQuad('r', 16.3, 17.6, 38, 56, C.blue); wallQuad('r', 16.65, 17.25, 41, 53, C.white);
-  wallText('r', 18, 42, 'DHITETA AI', 'bold 8px "Press Start 2P", monospace', '#fff');
   // meeting: TV + whiteboard on the left wall
   wallQuad('l',2,5.8,24,54,C.navy);wallQuad('l',2.2,5.6,26,52,C.blue3);
   wallText('l',3.9,39,'MEETING','bold 4px monospace',C.white,'center');
@@ -675,6 +684,21 @@ function drawRoom(t) {
   wallText('l',9.6,37,'HUDDLE','bold 4px monospace',C.white,'center');
   wallQuad('l',11.1,12.7,30,54,C.edge);wallQuad('l',11.22,12.58,32,52,C.white);
   for(let i=0;i<3;i++)wallQuad('l',11.4,12.3-i*.15,46-i*4,47-i*4,[C.blue,C.orange,C.leaf][i]);
+  // Team boards occupy blank wall sections, leaving the developer window and clock clear.
+  for(const [a,b,bottom,top,label,tint] of [
+    [10.1,12.4,18,34,'SPRINT',C.blue],
+    [16.4,19.6,27,54,'QA CHECK',C.leaf],
+    [20.5,24.2,27,54,'DESIGN',C.orange],
+  ]) {
+    wallQuad('r',a,b,bottom,top,C.edge);
+    wallQuad('r',a+.12,b-.12,bottom+1,top-1,C.white);
+    wallText('r',a+.25,top-5,label,'bold 3px monospace',C.navy);
+    for(let col=0;col<3;col++) {
+      const x=a+.25+col*(b-a-.5)/3;
+      wallQuad('r',x,x+(b-a-.7)/3,bottom+3,top-8,[tint,C.sky,C.wood][col]);
+      wallQuad('r',x+.04,x+(b-a-.7)/3-.04,bottom+5,bottom+5.6,C.navy);
+    }
+  }
   // clock
   const [cx, cy] = wallPt('r', 11.5, 46);
   ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.ellipse(cx, cy, 6, 7, 0, 0, Math.PI * 2); ctx.fill();

@@ -59,7 +59,7 @@ vm.runInContext(`
         };
         const first=capture();
         if(first!==capture())throw new Error('Background must be deterministic for the same time');
-        if(layout==='large'&&first===capture(22345))throw new Error('Large office train must move over time');
+        if(['medium','large'].includes(layout)&&first===capture(22345))throw new Error('Office train must move over time: '+layout);
         if(first==='[]')throw new Error('Background must contain surroundings');
         if(before!==backgroundState())throw new Error('Background must not mutate office simulation');
         if(building==='modern'&&atmosphere==='rain'&&daylight===1)backgroundGeometry.set(layout,first);

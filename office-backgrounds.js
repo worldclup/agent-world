@@ -60,6 +60,19 @@ function drawOfficeSurroundings(t, p) {
       rect(i*43-8,83-height,31,height,p.far);
       rect(i*43-5,81-height,25,2,p.trim+'70');
     }
+    // Eye-level transit passes behind neighboring buildings, visible through their gaps.
+    for(let x=24;x<w;x+=72)rect(x,110,5,38,p.trim);
+    rect(0,104,w,8,p.trim);rect(0,104,w,2,p.roof);
+    const trainX=((t/130)%(w+164))-132;
+    for(let car=0;car<4;car++) {
+      const x=trainX+car*29;
+      rect(x,91,27,13,p.near);rect(x,90,27,2,p.roof);
+      rect(x,101,27,2,p.accent);
+      for(let window=0;window<4;window++)rect(x+3+window*6,94,4,5,day<.5?p.accent:p.sky);
+      rect(x+13,93,1,8,p.trim);
+      if(car===3)rect(x+26,97,1,3,day<.5?'#fff2c6':p.sky);
+    }
+    rect(0,103,w,1,p.roof);
     // Rooftops sit below us; a few neighboring towers still rise above this floor.
     const neighbors=[[-20,191,57,118,20],[62,154,47,82,18],[145,134,54,68,20],
       [245,148,61,112,22],[354,133,49,75,17],[446,162,55,109,20],[548,193,63,137,23]];
