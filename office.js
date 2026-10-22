@@ -47,9 +47,9 @@ const deco = (x, y, kind, opt = {}) => objects.push({ x, y, w: 1, d: 1, kind, ..
 const AREAS = [
   { x: 1, y: 1, w: 7, h: 7, floor: 'carpet', title: 'MEETING' },
   { x: 1, y: 19, w: 7, h: 2, floor: 'wood', title: 'QUIET ROOM' },
-  { x: 11, y: 1, w: 6, h: 6, floor: 'developer', title: 'DEVELOPER' },
-  { x: 17, y: 1, w: 3, h: 6, floor: 'tester', title: 'TESTER' },
-  { x: 20, y: 1, w: 3, h: 6, floor: 'uxui', title: 'UX/UI' },
+  { x: 10, y: 1, w: 6, h: 6, floor: 'developer', title: 'DEVELOPER' },
+  { x: 16, y: 1, w: 4, h: 6, floor: 'tester', title: 'TESTER' },
+  { x: 20, y: 1, w: 5, h: 6, floor: 'uxui', title: 'UX/UI' },
   { x: 25, y: 10, w: 6, h: 4, floor: 'tile', title: 'TEAM OFFICE' },
   { x: 1, y: 8, w: 7, h: 5, floor: 'carpet', title: 'HUDDLE' },
   { x: 25, y: 14, w: 6, h: 3, floor: 'carpet', title: 'FOCUS' },
@@ -77,13 +77,18 @@ object(1,19,3,1,'glass',{edge:true});object(6,19,3,1,'glass',{edge:true,joinAt:'
 object(1,1,1,1,'plant');
 // Clear glass partitions around the meeting area, with open walkways between panels.
 object(8,1,1,3,'glass',{edge:true});object(8,6,1,3,'glass',{edge:true});
-object(25,11,1,1,'glass',{edge:true});object(25,14,1,1,'glass',{edge:true,trimEnd:true});
-object(25,10,6,1,'glass',{edge:true,joinAt:'start'});object(25,14,6,1,'glass',{edge:true,joinAt:'start'});
+object(25,10,1,2,'glass',{edge:true});object(25,14,1,1,'glass',{edge:true,trimEnd:true});
+object(25,10,6,1,'glass',{edge:true,joinAt:'start'});
+object(25,14,6,1,'glass',{edge:true,joinAt:'start'});
 // workspace
-for (const y of [2,5]) for (const x of [11,14,17,20]) { object(x,y,2,1,'desk',{role:x<17?'developer':x<20?'tester':'uxui'});deco(x,y+1,'chair'); }
+for (const y of [2,5]) for (const x of [11,14,17,22]) { object(x,y,2,1,'desk',{role:x<17?'developer':x<20?'tester':'uxui'});deco(x,y+1,'chair'); }
+// Adjacent glass rooms each have one front door onto the same cross-aisle.
+for(const x of [10,16,20])object(x,1,1,7,'glass',{edge:true,trimEnd:true});
+object(10,7,2,1,'glass',{edge:true});object(14,7,3,1,'glass',{edge:true,joinAt:'end'});
+object(19,7,3,1,'glass',{edge:true});object(24,7,2,1,'glass',{edge:true,joinAt:'end'});
 // Smaller rooms sit around a continuous central circulation route.
 for(const x of [26,29]){object(x,11,2,1,'desk');deco(x,12,'chair');}
-object(25,1,1,3,'glass',{edge:true});object(25,6,1,5,'glass',{edge:true});
+object(25,1,1,7,'glass',{edge:true,trimEnd:true});
 // The lounge is an open central hub; meeting rooms share the left wing.
 object(1,8,8,1,'glass',{edge:true,joinAt:'end'});
 object(8,11,1,5,'glass',{edge:true});object(8,18,1,1,'glass',{edge:true});
@@ -101,7 +106,7 @@ for(const y of [2,4])for(const x of [27,29])object(x,y,1,1,'rack');
 object(27,6,3,1,'controlDesk');deco(27,7,'chair');
 
 const zones = {
-  read: [[11,3],[14,3],[17,3],[20,3],[26,12],[26,16],[29,16]], write: [[11,6],[14,6],[17,6],[20,6],[29,12]],
+  read: [[11,3],[14,3],[17,3],[22,3],[26,12],[26,16],[29,16]], write: [[11,6],[14,6],[17,6],[22,6],[29,12]],
   web: [[30,12],[28,12]], bash: [[27,7],[28,4]],
   think: [[2,3],[6,4],[3,2],[4,5],[2,9],[6,11]], idle: [[12,12],[18,13],[20,12],[22,14],[27,19]],
 };
@@ -854,11 +859,20 @@ function drawObject(o, t) {
       }
       break;
     case 'bookcase': {
-      box(x,y,w,d,o.low?18:27,C.wood,C.woodDark,C.woodDark);
-      for(const z of (o.low?[2,10]:[4,12,20])) {
-        box(x+.1,y+.1,w-.2,d-.2,1,C.wood,C.wood,C.wood,z);
-        for(let i=0;i<Math.max(w,d)*3;i++)box(x+(w>d?.15+i*.3:.84),y+(w>d?.84:.15+i*.3),w>d?.18:.14,w>d?.14:.18,6,[C.blue,C.orange,C.leaf,C.edge][i%4],C.navy,C.blue3,z+1);
+      const height=o.low?18:27,across=w>=d;
+      shadowQ(x,y,w,d);
+      // A thin back, shelves and corner posts leave the book compartments open.
+      box(x+.05,y+.05,across?w-.1:.08,across?.08:d-.1,height,C.wood,C.woodDark,C.woodDark);
+      for(let z=0;z<=height;z+=9) {
+        box(x,y,w,d,1,C.wood,C.woodDark,C.woodDark,z);
+        if(z===height)continue;
+        const count=Math.max(w,d)*4-1,step=(Math.max(w,d)-.35)/count;
+        for(let i=0;i<count;i++) {
+          const u=.16+i*step,color=[C.blue,C.orange,C.leaf,C.edge][i%4];
+          box(x+(across?u:w-.35),y+(across?d-.35:u),across?step*.7:.2,across?.2:step*.7,5+i%3,color,color,C.woodDark,z+1);
+        }
       }
+      for(const dx of [0,w-.1])for(const dy of [0,d-.1])box(x+dx,y+dy,.1,.1,height+1,C.wood,C.woodDark,C.woodDark);
       break;
     }
     case 'readingDesk':

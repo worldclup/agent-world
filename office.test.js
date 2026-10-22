@@ -186,12 +186,20 @@ vm.runInContext(`
     const doors=layout==='home'?[[7,4],[7,5],[10,4],[10,5],[7,11],[7,12],[10,11],[10,12]]:layout==='medium'?[[4,7],[5,7],[9,4],[9,5],[8,16],[8,17],[14,8],[15,8],[8,12],[8,13],[21,5],[21,6]]:[];
     if(doors.some(p=>blocked.has(key(...p))))throw new Error('Partition doorway must stay open');
     for(const o of objects)if(o.x<1||o.y<1||o.x+o.w>COLS-1||o.y+o.d>ROWS-1)throw new Error('Furniture outside floor: '+layout);
+    for(const shelf of objects.filter(o=>o.kind==='bookcase')) {
+      const shelfBoxes=[],savedBox=box;
+      try {box=(...args)=>shelfBoxes.push(args);drawObject(shelf,1000);} finally {box=savedBox;}
+      if(shelfBoxes.some(([x,y,w,d,h])=>h>2&&w>=shelf.w-.2&&d>=shelf.d-.2))throw new Error('Bookshelf must have open compartments, not a solid cabinet body');
+      for(const [x,y,w,d] of shelfBoxes)if(x<shelf.x-1e-9||y<shelf.y-1e-9||x+w>shelf.x+shelf.w+1e-9||y+d>shelf.y+shelf.d+1e-9)throw new Error('Books or frame spill outside bookshelf');
+      if(!shelfBoxes.some(args=>args[4]===1&&args[2]===shelf.w&&args[3]===shelf.d))throw new Error('Bookshelf needs visible horizontal shelves');
+    }
     if(layout==='large') {
       for(const [title,role,count] of [['DEVELOPER','developer',4],['TESTER','tester',2],['UX/UI','uxui',2]]) {
         const area=AREAS.find(a=>a.title===title),desks=objects.filter(o=>o.role===role);
         if(!area||area.floor!==role||desks.length!==count||desks.some(o=>o.x<area.x||o.x+o.w>area.x+area.w||o.y<area.y||o.y+o.d>area.y+area.h))throw new Error('Role desks must match work zone: '+title);
-        if(objects.some(o=>o.kind==='glass'&&o.x>=area.x&&o.x<area.x+area.w&&o.y>=area.y&&o.y<area.y+area.h))throw new Error('Role zones must remain open to each other');
+        for(const x of [area.x,area.x+area.w])for(let y=1;y<=7;y++)if(!blocked.has(key(x,y)))throw new Error('Work rooms must have closed shared side walls');
       }
+      for(const [left,right,door] of [[10,16,[12,13]],[16,20,[17,18]],[20,25,[22,23]]])for(let x=left;x<=right;x++)if(blocked.has(key(x,7))===door.includes(x))throw new Error('Each work room needs one front entrance');
       for(const theme of Object.keys(BUILDINGS)) {
         setBuilding(theme);
         const floors=['developer','tester','uxui'].map(kind=>floorColor(kind,12,2));
@@ -213,7 +221,7 @@ vm.runInContext(`
       if(readingSeats.length!==2||readingSeats.some(o=>!zones.idle.some(p=>p[0]===o.x&&p[1]===o.y)||!roamSpots.some(p=>p[0]===o.x&&p[1]===o.y)||blocked.has(key(o.x,o.y))))throw new Error('Reading seats must be usable idle destinations');
       const added=objects.filter(o=>['readingDesk','roundTable','diningTable','locker','tvConsole','speaker','kitchenCounter','fridge'].includes(o.kind));
       for(const item of added)if(objects.some(o=>o!==item&&o.x<item.x+item.w&&o.x+o.w>item.x&&o.y<item.y+item.d&&o.y+o.d>item.y))throw new Error('New large office furniture overlaps: '+item.kind);
-      for(const p of [[8,4],[8,5],[8,9],[8,10],[4,19],[5,19],[25,4],[25,5],[25,12],[25,13],[25,15],[25,16],[27,19]])if(blocked.has(key(...p))||!route(ENTRY,p).length)throw new Error('New room doorway must be reachable: '+p);
+      for(const p of [[8,4],[8,5],[8,9],[8,10],[4,19],[5,19],[25,8],[25,9],[25,12],[25,13],[25,15],[25,16],[12,7],[13,7],[17,7],[18,7],[22,7],[23,7],[27,19]])if(blocked.has(key(...p))||!route(ENTRY,p).length)throw new Error('New room doorway must be reachable: '+p);
       for(let x=1;x<=8;x++)if(!blocked.has(key(x,8)))throw new Error('Meeting rooms must not have a connecting door');
       for(const [start,end,door] of [[1,8,[4,5]],[8,13,[9,10]]])for(let y=start;y<=end;y++)if(blocked.has(key(8,y))===door.includes(y))throw new Error('Meeting room must have only one entrance from main hall');
       const meetingDisplays=[],savedWallText=wallText;
