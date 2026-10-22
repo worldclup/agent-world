@@ -217,6 +217,11 @@
 </main>
 <dialog id="scene-settings" aria-labelledby="settings-title">
   <div class="settings-heading"><h2 id="settings-title">ตั้งค่าฉาก</h2><button id="close-settings" aria-label="ปิดและยกเลิก">×</button></div>
+  <fieldset><legend>รูปแบบออฟฟิศ</legend><div class="building-options">
+    <label class="building-card"><input type="radio" name="layout" id="layout-home" value="home"><b>Home Office</b><small>โต๊ะทำงาน 2 จุด · มุมพัก · มุมประชุมเล็ก</small></label>
+    <label class="building-card"><input type="radio" name="layout" id="layout-medium" value="medium"><b>Office ขนาดกลาง</b><small>โต๊ะทำงาน 6 จุด · ประชุม · Lounge · Server</small></label>
+    <label class="building-card"><input type="radio" name="layout" id="layout-large" value="large" checked><b>Office ขนาดใหญ่</b><small>ผังเดิม · โต๊ะทำงาน 8 จุด · แยกโซนครบ</small></label>
+  </div><p>แสดงตัวอย่างทันที เมื่อเปลี่ยนผัง AI จะเริ่มเดินใหม่จากทางเข้า โดยไม่ล้าง session หรือกิจกรรม กดยกเลิกเพื่อคืนผังเดิม</p></fieldset>
   <p>เลือกสไตล์ตึกแล้วพื้นหลังจะจับคู่ให้ทันที คุณยังปรับบรรยากาศเองได้ แสงเปลี่ยนตามเวลาเครื่องของคุณ</p>
   <fieldset><legend>สไตล์ตึก</legend><div class="building-options">
     <label class="building-card"><div class="building-preview" aria-hidden="true"></div><input type="radio" name="building" value="modern" id="building-modern"><b>Modern Office</b><small>ผนังขาว กระจกฟ้า เส้นสายเรียบ</small></label>

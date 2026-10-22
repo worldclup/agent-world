@@ -2,7 +2,8 @@
 // Dhiteta AI open-plan office, isometric (2.5D) pixel view.
 // Logic runs on a plain grid (route / zones / blocked); only drawing is projected to isometric.
 const cv = document.getElementById('c'), ctx = cv.getContext('2d');
-const COLS = 32, ROWS = 22, TW = 24, TH = 12, WALL = 72, SCALE = 2;
+let COLS = 32, ROWS = 22;
+const TW = 24, TH = 12, WALL = 72, SCALE = 2, ENTRY=[15,21];
 const OX = 274, OY = WALL + 100;
 const W = 668, H = OY + 436;
 function lightingAt(date) {
@@ -108,7 +109,7 @@ function route(from, to) {
     }
     for (const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
       const n = [p[0]+dx,p[1]+dy], k = key(...n);
-      if (n[0] > 0 && n[0] < 31 && n[1] > 0 && n[1] < 22 && !blocked.has(k) && !prev.has(k)) { prev.set(k,p); queue.push(n); }
+      if (n[0] > 0 && n[0] < COLS-1 && n[1] > 0 && n[1] < ROWS && !blocked.has(k) && !prev.has(k)) { prev.set(k,p); queue.push(n); }
     }
   }
   return [];
@@ -161,7 +162,7 @@ function apply(ev) {
   const kind = ev.kind || 'claude';
   let a = [...agents.values()].find(a => a.sessionSid === ev.sid && a.kind === kind);
   if (!a && !ev.sid.startsWith('demo-')) a = [...agents.values()].find(a => a.resident && a.kind === kind && !a.sessionSid);
-  if (!a) { const id = `${kind}:${ev.sid}`; a = { sid:id, x:15, y:21, dir:3, path:[], hue:agents.size % 5 }; agents.set(id,a); }
+  if (!a) { const id = `${kind}:${ev.sid}`; a = { sid:id, x:ENTRY[0], y:ENTRY[1], dir:3, path:[], hue:agents.size % 5 }; agents.set(id,a); }
   a.sessionSid = ev.sid;
   const wasIdle = a.state === 'idle';
   Object.assign(a, { kind:ev.kind || 'claude', project:String(ev.project || 'Agent'), state:ev.state, text:String(ev.text || ''), last:Date.now() });
@@ -176,7 +177,7 @@ function addResidents() {
   ['codex', 'claude'].forEach((kind, i) => {
     const sid = `resident:${kind}`;
     agents.set(sid, { sid, kind, resident:true, sessionSid:null, project:'ประจำ Office', state:'idle', text:'ยังไม่พบกิจกรรม', last:0,
-      x:3+i*3, y:16, dir:2, path:[], target:null, nextRoam:0, idleSince:Date.now() });
+      x:ENTRY[0]+i, y:ENTRY[1], dir:2, path:[], target:null, nextRoam:0, idleSince:Date.now() });
   });
 }
 
@@ -190,6 +191,86 @@ function expireAgents(now) {
 }
 
 const roamSpots = [[2,14],[5,14],[3,16],[6,16],[8,16],[9,15],[2,16], ...barSeats];
+const OFFICE_LAYOUTS={home:{cols:18,rows:16},medium:{cols:26,rows:20},large:{cols:32,rows:22}};
+let officeLayout='large';
+const largePlan={objects:objects.map(o=>({...o})),areas:AREAS.map(a=>({...a})),blocked:[...blocked],zones:JSON.parse(JSON.stringify(zones)),bar:barSeats.map(p=>[...p]),nap:napSpots.map(p=>[...p]),roam:roamSpots.map(p=>[...p])};
+function setLayout(name) {
+  if(!OFFICE_LAYOUTS[name])return;
+  officeLayout=name;({cols:COLS,rows:ROWS}=OFFICE_LAYOUTS[name]);
+  blocked.clear();objects.length=0;AREAS.length=0;barSeats.length=0;napSpots.length=0;roamSpots.length=0;
+  ENTRY.splice(0,2,Math.floor((COLS-2)/2),ROWS-1);
+  if(name==='large') {
+    ENTRY.splice(0,2,15,21);objects.push(...largePlan.objects.map(o=>({...o})));AREAS.push(...largePlan.areas);
+    largePlan.blocked.forEach(k=>blocked.add(k));Object.assign(zones,JSON.parse(JSON.stringify(largePlan.zones)));
+    barSeats.push(...largePlan.bar);napSpots.push(...largePlan.nap);roamSpots.push(...largePlan.roam);
+    Object.assign(VIEW,{x:60,y:110,w:550,h:370});
+  } else {
+    const home=name==='home';
+    AREAS.push(...(home?[
+      {x:11,y:1,w:6,h:7,floor:'tile',title:'WORK'}, {x:11,y:9,w:6,h:6,floor:'wood',title:'LOUNGE'},
+      {x:1,y:1,w:6,h:7,floor:'carpet',title:'MEETING'}, {x:1,y:9,w:6,h:6,floor:'wood',title:'QUIET'},
+    ]:[
+      {x:10,y:1,w:11,h:7,floor:'tile',title:'WORKSPACE'}, {x:1,y:1,w:8,h:6,floor:'carpet',title:'MEETING'},
+      {x:10,y:9,w:11,h:7,floor:'wood',title:'LOUNGE'}, {x:1,y:10,w:7,h:5,floor:'carpet',title:'QUIET'},
+      {x:1,y:16,w:7,h:3,floor:'wood',title:'REST'}, {x:22,y:1,w:3,h:8,floor:'dark',title:'SERVER'},
+      {x:21,y:10,w:4,h:8,floor:'wood',title:'KITCHEN'},
+    ]));
+    const xs=home?[11,14]:[11,14,17],ys=home?[2]:[2,5];
+    for(const y of ys)for(const x of xs){object(x,y,2,1,'desk');deco(x,y+1,'chair');deco(x+1,y+1,'chair');}
+    if(home) {
+      object(2,3,3,2,'table');deco(1,3,'chair');deco(5,4,'chair');
+      object(11,11,4,1,'sofa');object(12,14,2,1,'coffeeTable');object(15,13,1,1,'armchair');object(11,6,1,1,'rack');
+      object(11,9,3,1,'kitchenCounter');object(14,9,3,1,'coffeeBar');
+      object(2,10,3,1,'bookcase');object(3,12,2,1,'readingDesk');deco(3,13,'chair');object(1,13,1,1,'armchair');
+      barSeats.push([15,10],[16,10]);barSeats.forEach(([x,y])=>deco(x,y,'barStool'));
+      // Enclosed quiet rooms flank the hall; the front lounge stays open-plan.
+      for(const x of [7,10]) {
+        object(x,1,1,3,'glass',{edge:true,divider:true});
+        object(x,6,1,x===7?5:3,'glass',{edge:true,divider:true});
+        if(x===7)object(x,13,1,2,'glass',{edge:true,divider:true});
+      }
+      object(1,8,7,1,'glass',{edge:true,divider:true,joinAt:'end'});object(10,8,7,1,'glass',{edge:true,divider:true,joinAt:'start'});
+      Object.assign(zones,{read:[[3,13]],write:[[14,3]],web:[[15,4]],bash:[[12,6]],think:[[1,3],[5,4]],idle:[[11,12],[15,12],[2,13]]});
+    } else {
+      object(3,3,4,2,'table');[[2,3],[7,4],[4,2],[5,5]].forEach(([x,y])=>deco(x,y,'chair'));
+      object(11,10,4,1,'sofa');object(12,13,2,1,'coffeeTable');object(16,13,1,1,'armchair');object(18,10,3,1,'coffeeBar');
+      object(21,10,3,1,'kitchenCounter',{microwave:true});object(24,10,1,1,'fridge');
+      object(21,15,3,2,'diningTable');deco(20,15,'chair');deco(24,16,'chair');
+      object(11,15,4,1,'tvConsole');object(10,15,1,1,'speaker');object(15,15,1,1,'speaker');
+      barSeats.push([18,11],[19,11]);barSeats.forEach(([x,y])=>deco(x,y,'barStool'));
+      object(1,10,1,3,'bookcase');object(2,11,2,1,'readingDesk');object(5,11,2,1,'readingDesk');
+      deco(2,12,'chair');deco(5,12,'chair');
+      object(8,9,1,3,'glass',{edge:true,divider:true});object(8,14,1,2,'glass',{edge:true,divider:true,trimEnd:true});
+      object(1,9,8,1,'glass',{edge:true,divider:true,joinAt:'end'});object(1,15,8,1,'glass',{edge:true,divider:true,joinAt:'end'});
+      object(8,18,1,1,'glass',{edge:true,divider:true});
+      object(9,8,5,1,'glass',{edge:true,divider:true,joinAt:'start'});object(16,8,6,1,'glass',{edge:true,divider:true,joinAt:'end'});
+      // One open work cluster: short aisles between desks, no glass to walk around.
+      // Meeting has a direct door to the workspace plus its original hall entrance.
+      object(9,1,1,3,'glass',{edge:true});object(9,6,1,3,'glass',{edge:true,trimEnd:true});
+      object(1,7,3,1,'glass',{edge:true});object(6,7,4,1,'glass',{edge:true,joinAt:'end'});
+      object(21,1,1,4,'glass',{edge:true,divider:true});object(21,7,1,3,'glass',{edge:true,divider:true,trimEnd:true});
+      object(21,9,4,1,'glass',{edge:true,divider:true,joinAt:'start'});
+      object(22,3,1,1,'rack');object(24,3,1,1,'rack');object(22,6,2,1,'controlDesk');deco(22,7,'chair');
+      Object.assign(zones,{read:[[2,12],[5,12],[11,3],[14,3],[17,3]],write:[[11,6],[14,6],[17,6]],web:[[18,6]],bash:[[22,7],[23,5]],think:[[2,3],[7,4]],idle:[[11,12],[16,14],[18,11],[20,15],[24,16]]});
+    }
+    if(!home){
+      deco(2,16,'daybed',{rotated:true});deco(5,17,'daybed');napSpots.push([2,16],[2,17],[5,17],[6,17]);
+      object(1,16,1,1,'bedside');object(7,16,1,1,'plant');
+    }
+    object(1,1,1,1,'plant');object(COLS-2,1,1,1,'plant');object(1,ROWS-2,1,1,'plant');
+    for(let x=0;x<COLS;x++){wall(x,0);if(x!==ENTRY[0]&&x!==ENTRY[0]+1)wall(x,ROWS-1);}
+    for(let y=0;y<ROWS;y++){wall(0,y);wall(COLS-1,y);}
+    roamSpots.push(...zones.idle,...barSeats);
+    Object.assign(VIEW,{x:OX-(ROWS-2)*12-18,y:OY-WALL-16,w:(COLS+ROWS-4)*12+36,h:(COLS+ROWS-2)*6+WALL+36});
+  }
+  zones.talk=zones.think;zones.agent=zones.think;
+  cv.width=VIEW.w*SCALE;cv.height=VIEW.h*SCALE;
+  for(const a of agents.values())Object.assign(a,{x:ENTRY[0],y:ENTRY[1],path:[],target:null,roamTarget:null,nextRoam:0,sleeping:false,sleepSpot:null,sx:undefined,sy:undefined});
+  for(const key of Object.keys(OFFICE_LAYOUTS))document.getElementById('layout-'+key).checked=key===name;
+}
+function upperBedAt(a) {
+  return objects.find(o=>o.kind==='daybed'&&(o.rotated ? o.x===a.x&&o.y+1===a.y : o.x+1===a.x&&o.y===a.y));
+}
 function sleepTarget(a, now, night) {
   if (!night || a.state !== 'idle' || now - (a.idleSince ?? now) < 3*60e3) {
     a.sleepSpot = null; a.sleeping = false; return null;
@@ -244,10 +325,10 @@ const faceR = (gx, gy, w, d, u, v) => up(lerp(iso(gx + w, gy), iso(gx + w, gy + 
 // back walls: 'r' runs along gx at gy=1, 'l' runs along gy at gx=1
 const wallPt = (side, a, h) => up(side === 'r' ? iso(a, 1) : iso(1, a), h);
 const wallQuad = (side, a, b, h0, h1, c) => poly([wallPt(side, a, h0), wallPt(side, b, h0), wallPt(side, b, h1), wallPt(side, a, h1)], c);
-function wallText(side, a, h, text, font, color) {
+function wallText(side, a, h, text, font, color, align='left') {
   const [x, y] = wallPt(side, a, h);
   ctx.save(); ctx.translate(x, y); ctx.transform(1, side === 'r' ? .5 : -.5, 0, 1, 0, 0);
-  ctx.font = font; ctx.fillStyle = color; ctx.fillText(text, 0, 0); ctx.restore();
+  ctx.font = font; ctx.fillStyle = color; ctx.textAlign=align;ctx.fillText(text, 0, 0); ctx.restore();
 }
 function floorText(gx, gy, text) {                // text painted flat on the floor along gx
   const [x, y] = iso(gx, gy);
@@ -294,14 +375,14 @@ backgroundSelect.onchange=()=>{
 const settingsDialog=document.getElementById('scene-settings');
 let settingsSnapshot=null;
 function openSettings() {
-  settingsSnapshot={building:buildingTheme,background:backgroundTheme};
+  settingsSnapshot={building:buildingTheme,background:backgroundTheme,layout:officeLayout};
   backgroundSelect.value=backgroundTheme;
   backgroundSelect.refreshAppearance?.();
   Object.keys(BUILDINGS).forEach(name=>{document.getElementById(`building-${name}`).checked=name===buildingTheme;});
   settingsDialog.showModal();
 }
 function cancelSettings() {
-  if(settingsSnapshot){setBuilding(settingsSnapshot.building);backgroundTheme=settingsSnapshot.background;backgroundSelect.value=backgroundTheme;backgroundSelect.refreshAppearance?.();settingsSnapshot=null;}
+  if(settingsSnapshot){if(officeLayout!==settingsSnapshot.layout)setLayout(settingsSnapshot.layout);setBuilding(settingsSnapshot.building);backgroundTheme=settingsSnapshot.background;backgroundSelect.value=backgroundTheme;backgroundSelect.refreshAppearance?.();settingsSnapshot=null;}
   settingsDialog.close();
 }
 const MATCHING_BACKGROUNDS = { modern:'rain', cyber:'neon', loft:'sunset', garden:'rain' };
@@ -313,13 +394,15 @@ function chooseBuilding(theme) {
   backgroundSelect.refreshAppearance?.();
 }
 Object.keys(BUILDINGS).forEach(name=>{document.getElementById(`building-${name}`).onchange=()=>chooseBuilding(name);});
+Object.keys(OFFICE_LAYOUTS).forEach(name=>{document.getElementById('layout-'+name).onchange=()=>setLayout(name);});
+try{setLayout(localStorage.getItem('office-layout')||'large');}catch{setLayout('large');}
 document.getElementById('open-settings').onclick=openSettings;
 document.getElementById('cancel-settings').onclick=cancelSettings;
 document.getElementById('close-settings').onclick=cancelSettings;
 settingsDialog.oncancel=e=>{e.preventDefault();cancelSettings();};
 settingsDialog.onclose=()=>{if(settingsSnapshot)cancelSettings();};
 document.getElementById('save-settings').onclick=()=>{
-  try { localStorage.setItem('office-background',backgroundTheme);localStorage.setItem('office-building',buildingTheme); } catch {}
+  try { localStorage.setItem('office-background',backgroundTheme);localStorage.setItem('office-building',buildingTheme);localStorage.setItem('office-layout',officeLayout); } catch {}
   settingsSnapshot=null;settingsDialog.close();
 };
 function drawBangkok(t) {
@@ -424,7 +507,91 @@ function drawBuildingExterior() {
   }
 }
 
+function drawCompactRoom(t) {
+  drawBangkok(t);
+  const right=COLS-1,front=ROWS-1;
+  const leftEdge=[iso(1,front),iso(right,front)],rightEdge=[iso(right,1),iso(right,front)];
+  for(const [edge,color] of [[leftEdge,C.wallSide],[rightEdge,C.edge]])poly([...edge,up(edge[1],-36),up(edge[0],-36)],color);
+  for(let y=1;y<front;y++)for(let x=1;x<right;x++){
+    const area=AREAS.find(a=>x>=a.x&&x<a.x+a.w&&y>=a.y&&y<a.y+a.h);
+    poly(quad(x,y,1,1),floorColor(area?.floor,x,y));
+  }
+  poly(quad(ENTRY[0],front,2,1),C.blue);
+  wallQuad('l',1,front,0,WALL,C.wallSide);wallQuad('r',1,right,0,WALL,C.wall);
+  for(const [side,end] of [['l',front],['r',right]]){
+    wallQuad(side,1,end,0,5,C.blue);wallQuad(side,1,end,WALL-5,WALL,C.navy);
+    if(buildingTheme==='cyber'){wallQuad(side,1,end,9,10,'#55e6e5');wallQuad(side,1,end,62,64,'#ed83db');}
+    if(buildingTheme==='loft')for(let h=8;h<65;h+=8)wallQuad(side,1,end,h,h+.6,'#806451');
+  }
+  const windows=officeLayout==='medium' ? [['r',11,14],['r',17,20]] : [['l',2,5],['r',2,6],['r',right-5,right-1]];
+  for(const [side,a,b] of windows){
+    wallQuad(side,a,b,22,59,C.navy);wallQuad(side,a+.15,b-.15,24,57,C.sky);wallQuad(side,a+.15,b-.15,43,57,C.sky2);
+    for(let m=a+1;m<b;m++)wallQuad(side,m-.04,m+.04,24,57,C.navy);
+  }
+  wallQuad('r',7,10,31,53,C.navy);wallText('r',7.2,39,'AI OFFICE','bold 5px monospace','#fff');
+  {
+    // Both compact layouts place the meeting room against these back walls.
+    wallQuad('l',2,5,20,59,C.navy);wallQuad('l',2.15,4.85,22,57,C.blue3);
+    wallText('l',3.5,40,'MEETING','bold 4px monospace',C.white,'center');
+    wallQuad('l',2.4,4.5,30,32,C.blue2);
+    wallQuad('r',1.5,5.8,24,57,C.edge);wallQuad('r',1.65,5.65,26,55,C.white);
+    wallText('r',1.9,47,'ROADMAP','bold 5px monospace',C.navy);
+    for(let i=0;i<3;i++) {
+      const a=1.95+i*1.1;
+      wallQuad('r',a,a+.8,38,41,[C.blue,C.orange,C.leaf][i]);
+      wallQuad('r',a,a+.65,31,33,C.edge);
+    }
+  }
+  if(officeLayout==='medium') {
+    wallQuad('r',14.4,16.6,28,58,C.edge);wallQuad('r',14.55,16.45,30,56,C.white);
+    wallText('r',14.65,49,'WORK','bold 4px monospace',C.navy);
+    for(let i=0;i<3;i++) {
+      wallQuad('r',14.75,16.15,43-i*5,44-i*5,[C.blue,C.orange,C.leaf][i]);
+    }
+    // No glazing behind server racks: just a taped maintenance note.
+    wallQuad('r',22.5,24.1,34,52,'#fff1bd');
+    wallQuad('r',22.95,23.6,51,54,C.edge);
+    wallText('r',22.65,46,'LOG','bold 4px monospace',C.navy);
+    for(let i=0;i<2;i++)wallQuad('r',22.75,23.85,39-i*3,40-i*3,C.woodDark);
+    const count=runningCommands(),statusColor=count?'#75edb5':'#9ab0c8';
+    wallQuad('r',22,24.8,58,67,C.navy);
+    wallQuad('r',22.15,22.32,61,63,statusColor);
+    wallText('r',22.45,61,count?'RUNNING · '+count:'IDLE','bold 3px monospace',statusColor);
+  }
+  if(officeLayout!=='medium')AREAS.forEach(a=>floorText(a.x+.3,a.y+a.h-.4,a.title));
+}
+const zoneNames={WORKSPACE:'ทำงาน',MEETING:'ประชุม',LOUNGE:'นั่งเล่น',QUIET:'มุมสงบ',REST:'พักผ่อน',SERVER:'เซิร์ฟเวอร์',KITCHEN:'ครัว'};
+const zoneSigns={
+  WORKSPACE:{x:12,y:8,h:20,label:'WORKSPACE',description:'โต๊ะทำงานร่วมกัน เดินคุยกับเพื่อนได้สะดวก'},
+  MEETING:{x:9,y:2,h:20,label:'MEETING',description:'ประชุม วางแผนงาน และนำเสนอบนทีวี'},
+  QUIET:{x:8,y:10,h:20,label:'QUIET ROOM',description:'อ่านหนังสือและทำงานที่ต้องใช้สมาธิ'},
+  REST:{x:1,y:17,h:35,label:'BEDROOM',description:'พักผ่อนและนอนพักบนเตียงสองชั้น'},
+  SERVER:{x:21,y:7.5,h:21,label:'SERVER',description:'ดูแลเซิร์ฟเวอร์และตรวจสถานะคำสั่ง'},
+};
+const zonePoint=area=>{const s=zoneSigns[area.title];return up(iso(s.x,s.y),s.h);};
+const zoneSignSlope=area=>['MEETING','QUIET','REST','SERVER'].includes(area.title)?-.5:.5;
+const zoneSignWidth=()=>16;
+function hoveredZone(x,y) {
+  return officeLayout==='medium' ? AREAS.find(area=>{if(!zoneSigns[area.title])return false;const [px,py]=zonePoint(area);return Math.abs(x-px)<=zoneSignWidth(area)/2+2&&Math.abs(y-py-zoneSignSlope(area)*(x-px))<=7;}) : undefined;
+}
+function drawZoneLabels() {
+  if(officeLayout!=='medium')return;
+  ctx.save();ctx.font='bold 5px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+  for(const area of AREAS) {
+    if(!zoneSigns[area.title])continue;
+    const [x,y]=zonePoint(area),width=zoneSignWidth(area);
+    ctx.save();ctx.translate(x,y);ctx.transform(1,zoneSignSlope(area),0,1,0,0);
+    rect(-width/2,-4,width,8,C.navy);
+    rect(-width/2+1,-3,width-2,6,C.edge);
+    rect(-width/2+2,-2,width-4,4,C.white);
+    rect(-width/2+2,0,1,1,C.navy);rect(width/2-3,0,1,1,C.navy);
+    rect(-2,-2,4,4,C.navy);rect(-1,-1,2,2,C.white);
+    ctx.restore();
+  }
+  ctx.restore();
+}
 function drawRoom(t) {
+  if(officeLayout!=='large'){drawCompactRoom(t);return;}
   drawBangkok(t);
   drawBuildingExterior();
   // floor
@@ -540,19 +707,27 @@ function drawObject(o, t) {
       box(...thin,3,C.navy,C.blue3,C.navy,h);
       break;
     }
-    case 'daybed':
-      shadowQ(x,y,2,1);
-      for (const z of [5,27]) {
-        box(x,y,2,1,2,C.wood,C.woodDark,'#b07f4a',z-2);
-        box(x+.05,y+.05,1.9,.9,3,'#c4d7ef','#a6bedf','#8da8cd',z);
-        box(x+.12,y+.12,.45,.72,2,'#fff','#e9eef6','#dfe7f2',z+3);
-        box(x+.8,y+.08,1.1,.84,1,C.blue2,C.blue3,C.blue,z+3);
-      }
-      for (const [dx,dy] of [[0,0],[1.9,0],[0,.9],[1.9,.9]]) box(x+dx,y+dy,.1,.1,36,C.wood,C.woodDark,'#b07f4a');
-      box(x+.05,y,1.9,.08,3,C.wood,C.woodDark,'#b07f4a',33);
-      for (const dx of [1.5,1.9]) box(x+dx,y+1,.06,.06,29,C.wood,C.woodDark,'#b07f4a');
-      for (const z of [6,13,20,27]) box(x+1.5,y+1,.46,.06,1,C.wood,C.woodDark,'#b07f4a',z);
+    case 'bedside':
+      box(x+.1,y+.1,.8,.8,8,C.wood,C.woodDark,C.woodDark);
+      box(x+.3,y+.3,.4,.4,1,C.navy,C.navy,C.navy,8);
+      box(x+.47,y+.47,.06,.06,7,C.woodDark,C.woodDark,C.woodDark,9);
+      box(x+.2,y+.2,.6,.6,4,'#f5d58b',C.orange,C.wood,16);
       break;
+    case 'daybed': {
+      const b=(gx,gy,bw,bd,...rest)=>o.rotated ? box(x+gy-y,y+gx-x,bd,bw,...rest) : box(gx,gy,bw,bd,...rest);
+      shadowQ(x,y,o.rotated?1:2,o.rotated?2:1);
+      for (const z of [5,27]) {
+        b(x,y,2,1,2,C.wood,C.woodDark,'#b07f4a',z-2);
+        b(x+.05,y+.05,1.9,.9,3,'#c4d7ef','#a6bedf','#8da8cd',z);
+        b(x+.12,y+.12,.45,.72,2,'#fff','#e9eef6','#dfe7f2',z+3);
+        b(x+.8,y+.08,1.1,.84,1,C.blue2,C.blue3,C.blue,z+3);
+      }
+      for (const [dx,dy] of [[0,0],[1.9,0],[0,.9],[1.9,.9]]) b(x+dx,y+dy,.1,.1,36,C.wood,C.woodDark,'#b07f4a');
+      b(x+.05,y,1.9,.08,3,C.wood,C.woodDark,'#b07f4a',33);
+      for (const dx of [1.5,1.9]) b(x+dx,y+1,.06,.06,29,C.wood,C.woodDark,'#b07f4a');
+      for (const z of [6,13,20,27]) b(x+1.5,y+1,.46,.06,1,C.wood,C.woodDark,'#b07f4a',z);
+      break;
+    }
     case 'sofa':
       shadowQ(x, y, w, d);
       box(x, y + .2, w, .8, 7, C.blue2, C.blue3, C.blue3);
@@ -569,12 +744,27 @@ function drawObject(o, t) {
       box(x + .1, y + .15, w - .2, d - .3, 6, C.wood, C.woodDark, '#b07f4a');
       box(x + .5, y + .4, .2, .2, 3, '#fff', '#e9eef6', '#dfe7f2', 6); box(x + 1.2, y + .35, .4, .3, 1, C.blue, C.blue3, C.blue3, 6);
       break;
+    case 'kitchenCounter':
     case 'coffeeBar': {
       shadowQ(x, y, w, d);
       box(x, y, w, d, 17, C.wood, C.woodDark, '#b07f4a');
       box(x - .08, y - .04, w + .16, d + .18, 2, '#ffffff', '#dfe7f2', '#c9d7ec', 17);
       box(x, y + d - .08, w, .08, 2, C.blue, C.blue, C.blue3, 3);
       for (let i = 1; i < w; i++) box(x + i, y + d - .02, .03, .03, 12, '#b08252', '#b08252', '#b08252', 3);
+      if(o.kind==='kitchenCounter') {
+        box(x+.25,y+.18,.9,.6,1,C.navy,C.edge,C.edge,19);
+        box(x+.35,y+.25,.7,.42,1,C.glassTop,C.blue3,C.blue3,20);
+        box(x+.65,y+.12,.08,.08,5,C.edge,C.navy,C.navy,19);
+        box(x+.65,y+.12,.08,.3,1,C.edge,C.navy,C.navy,24);
+        box(x+1.65,y+.15,1,.65,1,C.navy,C.blue3,C.blue3,19);
+        for(const dx of [1.85,2.3])box(x+dx,y+.3,.2,.25,1,C.edge,C.edge,C.edge,20);
+        if(o.microwave) {
+          box(x+1.65,y+.1,1,.65,7,C.edge,C.white,C.edge,21);
+          box(x+1.75,y+.66,.65,.05,4,C.navy,C.navy,C.navy,23);
+          box(x+2.48,y+.67,.08,.05,1,C.orange,C.orange,C.orange,24);
+        }
+        break;
+      }
       box(x + .3, y + .15, .6, .5, 12, C.navy, '#1b3a6b', '#16315c', 18);
       const [lx, ly] = faceL(x + .3, y + .15, .6, .5, .5, 26);
       rect(lx - 1, ly, 2, 2, (t / 500 | 0) % 2 ? '#4ade80' : '#14532d');
@@ -607,12 +797,54 @@ function drawObject(o, t) {
     }
     case 'glass': {
       const offset = o.edge ? 0 : .45;
-      const thin = w > d ? [x, y + offset, w + (o.edge ? .1 : 0), .1] : [x + offset, y, .1, d];
+      const length = o.joinAt==='end' ? w-1+.16 : w+(o.edge ? .1 : 0);
+      const thin = w > d ? [x, y + offset, length, .1] : [x + offset, y, .1, o.trimEnd ? d-1+.16 : d];
       box(...thin, 30, C.glassTop, C.glass, C.glass);
       box(...thin, 3, C.navy, C.blue3, C.blue3);
       box(thin[0], thin[1], thin[2], thin[3], 2, C.navy, C.navy, C.navy, 30);
+      if(o.joinAt) {
+        const jx=o.joinAt==='end'?x+w-1:x;
+        box(jx,y,.16,.16,32,C.navy,C.blue3,C.navy);
+      }
       break;
     }
+    case 'fridge':
+      box(x,y,w,d,31,C.edge,C.white,C.wallSide);
+      box(x,y+.98,w,.03,1,C.navy,C.navy,C.navy,20);
+      for(const z of [12,25])box(x+.8,y+1,.07,.06,5,C.navy,C.navy,C.navy,z);
+      break;
+    case 'speaker':
+      box(x+.2,y+.2,.6,.6,17,C.navy,C.blue3,C.navy);
+      for(const z of [4,11])box(x+.3,y+.79,.35,.04,3,C.edge,C.navy,C.edge,z);
+      break;
+    case 'tvConsole':
+      box(x,y,w,d,6,C.wood,C.woodDark,C.woodDark);
+      box(x+.2,y+.3,w-.4,.15,22,C.navy,C.navy,C.navy,7);
+      box(x+.35,y+.46,w-.7,.02,18,C.blue3,C.blue,C.blue3,9);
+      box(x+.65,y+.49,w-1.3,.02,1,C.glassTop,C.glassTop,C.glassTop,14);
+      break;
+    case 'diningTable':
+      for(const dx of [.15,w-.3])for(const dy of [.15,d-.3])box(x+dx,y+dy,.15,.15,10,C.woodDark,C.woodDark,C.woodDark);
+      box(x,y,w,d,2,C.wood,C.woodDark,C.woodDark,10);
+      for(const dx of [.4,w-1])box(x+dx,y+.6,.5,.5,1,C.white,C.edge,C.edge,12);
+      break;
+    case 'bookcase': {
+      box(x,y,w,d,27,C.wood,C.woodDark,C.woodDark);
+      for(const z of [4,12,20]) {
+        box(x+.1,y+.1,w-.2,d-.2,1,C.wood,C.wood,C.wood,z);
+        for(let i=0;i<Math.max(w,d)*3;i++)box(x+(w>d?.15+i*.3:.84),y+(w>d?.84:.15+i*.3),w>d?.18:.14,w>d?.14:.18,6,[C.blue,C.orange,C.leaf,C.edge][i%4],C.navy,C.blue3,z+1);
+      }
+      break;
+    }
+    case 'readingDesk':
+      shadowQ(x,y,w,d);
+      for(const dx of [.1,w-.2])box(x+dx,y+.2,.1,.6,10,C.woodDark,C.woodDark,C.woodDark);
+      box(x,y,w,d,2,C.wood,C.woodDark,C.woodDark,10);
+      box(x+.65,y+.3,.8,.45,1,C.white,C.edge,C.edge,12);
+      box(x+1.04,y+.3,.03,.45,1,C.blue3,C.blue3,C.blue3,13);
+      box(x+.25,y+.2,.12,.12,10,C.navy,C.navy,C.navy,12);
+      box(x+.08,y+.07,.45,.4,3,'#f5d58b',C.orange,C.wood,21);
+      break;
     case 'desk': {
       shadowQ(x, y, w, d);
       box(x, y + .05, w, .9, 9, C.white, C.edge, '#dfe7f2');
@@ -739,8 +971,8 @@ function sprite(look, view, frame, prop, sit) {
 }
 
 function drawAgent(a, t) {
-  const upperBunk = a.sleeping && [4,8].includes(a.x);
-  const [x, y] = iso(a.x + (upperBunk ? -.5 : .5), a.y + .5);
+  const upperBed = a.sleeping && upperBedAt(a), upperBunk=!!upperBed;
+  const [x, y] = iso(a.x + (upperBunk&&!upperBed.rotated ? -.5 : .5), a.y + (upperBed?.rotated ? -.5 : .5));
   a.look = a.look || lookFor(a.sid, a.kind);
   const working = !a.path.length && ['read', 'write', 'web', 'bash'].includes(a.state);
   const atBar = !a.path.length && a.state === 'idle' && barSeats.some(([sx,sy]) => a.x === sx && a.y === sy);
@@ -754,7 +986,7 @@ function drawAgent(a, t) {
   ctx.save();
   if (a.sleeping) {
     ctx.translate(Math.round(x),Math.round(y)-(upperBunk ? 31 : 9));
-    ctx.rotate(-Math.PI/2);
+    ctx.rotate(upperBed?.rotated || objects.some(o=>o.kind==='daybed'&&o.rotated&&o.x===a.x&&o.y===a.y) ? Math.PI/2 : -Math.PI/2);
     ctx.drawImage(img,-SW/2,-SH/2);
     ctx.restore();
     a.sx=x;a.sy=y-(upperBunk ? 22 : 0);a.top=a.sy-22;
@@ -799,13 +1031,19 @@ function updateTooltip() {
   const offsetX = (cv.clientWidth-VIEW.w*scale)/2, offsetY = (cv.clientHeight-VIEW.h*scale)/2;
   const x = (pointer.x-r.left-cv.clientLeft-offsetX)/scale+VIEW.x;
   const y = (pointer.y-r.top-cv.clientTop-offsetY)/scale+VIEW.y;
-  const a = hoveredAgent(x,y);
-  cv.style.cursor = a ? 'help' : 'default';
-  tooltip.hidden = !a;
-  if (!a) return;
+  const zone=hoveredZone(x,y),a = hoveredAgent(x,y);
+  cv.style.cursor = zone||a ? 'help' : 'default';
+  tooltip.hidden = !zone&&!a;
+  if (!zone&&!a) return;
+  if(zone) {
+    document.getElementById('agent-tooltip-name').textContent=zoneSigns[zone.title].label;
+    document.getElementById('agent-tooltip-state').textContent=zoneSigns[zone.title].description;
+    document.getElementById('agent-tooltip-task').textContent='';
+  } else {
   document.getElementById('agent-tooltip-name').textContent = `${a.kind === 'codex' ? 'Codex' : 'Claude'} · ${a.project}`;
   document.getElementById('agent-tooltip-state').textContent = a.resident && !a.sessionSid ? 'สมาชิกประจำ · ยังไม่เชื่อม session' : `สถานะ: ${labels[a.state] || 'ทำงาน'} (จากกิจกรรมล่าสุด)`;
-  document.getElementById('agent-tooltip-task').textContent = a.sleeping ? `นอนพัก · ${[4,8].includes(a.x) ? 'เตียงชั้นบน' : 'เตียงชั้นล่าง'} (ภาพเคลื่อนไหวเท่านั้น)` : a.sleepSpot ? 'กำลังเดินไปพักงีบ' : a.text || (a.state === 'idle' ? 'เดินเล่น / พักใน Lounge' : 'กำลังทำงาน');
+  document.getElementById('agent-tooltip-task').textContent = a.sleeping ? `นอนพัก · ${upperBedAt(a) ? 'เตียงชั้นบน' : 'เตียงชั้นล่าง'} (ภาพเคลื่อนไหวเท่านั้น)` : a.sleepSpot ? 'กำลังเดินไปพักงีบ' : a.text || (a.state === 'idle' ? 'เดินเล่น / พักใน Lounge' : 'กำลังทำงาน');
+  }
   tooltip.style.left = `${Math.max(8,Math.min(pointer.x+14,window.innerWidth-tooltip.offsetWidth-8))}px`;
   tooltip.style.top = `${Math.max(8,Math.min(pointer.y+14,window.innerHeight-tooltip.offsetHeight-8))}px`;
 }
@@ -817,6 +1055,7 @@ function drawScene(t) {
   for (const a of agents.values()) items.push({ k: a.x + a.y + .6, draw: () => drawAgent(a, t) });
   items.sort((p, q) => p.k - q.k).forEach(i => i.draw());
   drawAmbientLight();
+  drawZoneLabels();
   for (const a of agents.values()) if (a.sx) drawTags(a, t);
 }
 
@@ -826,7 +1065,7 @@ function drawAmbientLight() {
   rect(0,0,W,H,`rgba(12,24,65,${darkness*.28})`);
   // Warm pools of indoor light preserve visibility while the windows turn dark.
   ctx.save(); ctx.globalCompositeOperation = 'screen';
-  [[5,4],[18,4],[6,16],[25,16]].forEach(([gx,gy]) => {
+  (officeLayout==='large'?[[5,4],[18,4],[6,16],[25,16]]:[[5,4],[COLS-6,4],[5,ROWS-5]]).forEach(([gx,gy]) => {
     const [x,y] = iso(gx,gy), glow=ctx.createRadialGradient(x,y,0,x,y,65);
     glow.addColorStop(0,`rgba(255,210,128,${darkness*.20})`); glow.addColorStop(1,'rgba(255,210,128,0)');
     ctx.fillStyle=glow;ctx.fillRect(x-65,y-65,130,130);
