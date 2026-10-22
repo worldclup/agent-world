@@ -1,6 +1,9 @@
 // Agent World: watches Claude Code session logs and streams events to a pixel-art page.
 // Run: node server.js  ->  open http://localhost:4321
 const http = require('http'), fs = require('fs'), path = require('path'), os = require('os');
+// Load project-local settings even when launched directly or from another directory.
+try {require('node:process').loadEnvFile(path.join(__dirname,'.env'));}
+catch(error) {if(error.code!=='ENOENT')throw error;}
 
 const ROOT = path.join(os.homedir(), '.claude', 'projects');
 const CODEX_ROOT = path.join(os.homedir(), '.codex', 'sessions');
@@ -10,6 +13,10 @@ const clients = new Set();
 const offsets = new Map();
 const latest = new Map();
 const ACTIVE_MS = 15 * 60e3;
+const sessionRegistry=require('./session-registry')();
+const handleChat=require('./chat-server')({resolve:sessionRegistry.resolve,list:()=>[...latest.entries()]
+  .filter(([key,event])=>Date.now()-event.t<=ACTIVE_MS&&!event.sid.startsWith('demo-')&&sessionRegistry.resolve(key))
+  .map(([key,event])=>({key,kind:event.kind,sid:event.sid,project:event.project,state:event.state,ambiguous:!!sessionRegistry.resolve(key).ambiguous}))});
 
 function send(ev) {
   latest.set(`${ev.kind}:${ev.sid}`, ev);
@@ -33,6 +40,7 @@ function detail(input = {}) {
 
 function handle(file, e) {
   const sid = path.basename(file, '.jsonl').slice(0, 8);
+  sessionRegistry.remember(file,'claude',sid,e);
   const project = path.basename(path.dirname(file)).split('-').filter(Boolean).pop() || '?';
   const base = { sid, project, kind: 'claude', t: Date.now() };
   const content = e.message && e.message.content;
@@ -56,6 +64,7 @@ const READ_CMD = /^\s*(sed|cat|head|tail|rg|grep|ls|find|nl|wc|git (log|show|dif
 
 function handleCodex(file, e) {
   const sid = path.basename(file, '.jsonl').slice(-8);
+  sessionRegistry.remember(file,'codex',sid,e.payload);
   const p = e.payload || {};
   if (!codexProject.has(file)) {               // project name lives in the file's first line (session_meta)
     const buf = Buffer.alloc(65536), fd = fs.openSync(file, 'r');
@@ -157,6 +166,7 @@ for (const [root, handler] of [[ROOT, handle], [CODEX_ROOT, handleCodex]]) {
 }
 
 http.createServer((req, res) => {
+  if(req.url==='/chat'||req.url==='/sessions'){handleChat(req,res);return;}
   if (req.url === '/events') {
     res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' });
     res.write(': hi\n\n');
@@ -167,7 +177,7 @@ http.createServer((req, res) => {
     const pathname = new URL(req.url, 'http://localhost').pathname;
     const allowed = { '/': 'index.html', '/index.html': 'index.html', '/office.js': 'office.js', '/office-backgrounds.js': 'office-backgrounds.js', '/assets/roguelikeCity_magenta.png': 'assets/roguelikeCity_magenta.png' };
     const localeFiles={'/i18n.js':'i18n.js','/locales/en.js':'locales/en.js','/locales/th.js':'locales/th.js'};
-    const file = allowed[pathname] || localeFiles[pathname];
+    const file = allowed[pathname] || localeFiles[pathname] || (pathname==='/chat.js'?'chat.js':null);
     const iconFile = /^\/assets\/icons\/(coffee|book|edit|globe|message|terminal|users|play|info-box|sliders)\.svg$/.test(pathname) ? pathname.slice(1) : null;
     const target = file || iconFile;
     if (!target) { res.writeHead(404); res.end('Not found'); return; }

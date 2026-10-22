@@ -3,6 +3,9 @@
 | File | Purpose |
 | --- | --- |
 | `server.js` | Local HTTP server, static-file allowlist, session parsing/polling, SSE `/events` |
+| `chat-server.js` | Local-origin session endpoints and bounded tool-free Claude CLI continuation |
+| `session-registry.js` | Full session IDs and project directories, short-ID collision rejection |
+| `chat.js` | Visible-session picker and per-session tab-local display (not stored provider history) |
 | `index.html` | Page, settings controls, styles, script loading |
 | `office.js` | Layout data, furniture rendering, themes, movement, event handling |
 | `office-backgrounds.js` | Layout-specific animated surroundings |
@@ -10,6 +13,7 @@
 | `locales/en.js`, `locales/th.js` | English and Thai translation catalogs |
 | `office.test.js` | Canvas/DOM simulation tests, geometry and path checks |
 | `server.test.js` | Session parsing, replay, polling, and static-serving tests |
+| `chat.test.js` | Mocked CLI continuation, request validation and session-registry tests |
 | `assets/` | Bundled reference art, UI icons, credits and third-party licenses |
 
 ## Change a room or furniture
@@ -29,6 +33,8 @@ Room plaque positions are in `layoutSigns`; drawing and hover hit testing share 
 `index.html` loads the background script before `office.js`. Any new separately served file must be added to the server's static allowlist; do not replace it with unrestricted filesystem serving.
 
 ## Verify
+
+Session chat setup and troubleshooting are documented in [CHAT.md](CHAT.md). `GET /sessions` returns recent, metadata-resolved session summaries and effective enablement; the browser filters these to agents actually present. `POST /chat` validates the selected session, confirmation, idle state and request limits before launching Claude without a shell. Never accept executable paths, cwd, resume IDs or CLI flags directly from the browser. Do not test by sending into a live user session without explicit approval. `.env` is loaded before the chat handler is created, so restart is required for a changed process configuration.
 
 For interface text, use `data-i18n` (or `data-i18n-aria-label` / `data-i18n-title`) and add the source phrase to `locales/en.js`. Source phrases are translation keys; the Thai catalog uses those phrases with overrides for English room names. Dynamic interface text uses `i18n.t(key)`. Never pass real task text or project names through translation. Load English, Thai, and `i18n.js` before the scene scripts. Missing translations fall back to English, then to the key. `i18n.test.js` covers selection, persistence, fallbacks, and static catalog coverage.
 

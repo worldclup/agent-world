@@ -2,8 +2,12 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const assert = require('node:assert/strict');
 let request;
+let loadedEnvPath;
 const context = vm.createContext({
   require(name) {
+    if(name==='node:process')return {loadEnvFile(file){loadedEnvPath=file;}};
+    if(name==='./chat-server')return ()=>()=>{};
+    if(name==='./session-registry')return ()=>({remember(){},resolve(){}});
     if (name === 'http') return { createServer(fn) { request = fn; return { listen() {} }; } };
     if (name === 'fs') return { ...fs, existsSync: () => false };
     return require(name);
@@ -11,6 +15,7 @@ const context = vm.createContext({
   __dirname, Buffer, URL, console, setInterval: () => ({ unref() {} }),
 });
 vm.runInContext(fs.readFileSync('server.js', 'utf8'), context);
+assert.equal(loadedEnvPath,require('node:path').join(__dirname,'.env'),'Direct startup must load project-local .env before chat configuration');
 vm.runInContext(`
   const fixture = '/tmp/session-12345678.jsonl';
   codexProject.set(fixture, 'agent-world');
@@ -50,7 +55,7 @@ async function checkBackgroundScript() {
     });
   });
   console.log('PASS: background renderer loads before office and is served as JavaScript.');
-  for(const url of ['/locales/en.js','/locales/th.js','/i18n.js'])await new Promise((resolve,reject)=>{
+  for(const url of ['/locales/en.js','/locales/th.js','/i18n.js','/chat.js'])await new Promise((resolve,reject)=>{
     let status,headers;
     request({url},{writeHead(code,value){status=code;headers=value;},end(body){
       try {assert.equal(status,200);assert.match(headers['Content-Type'],/javascript/);assert.ok(String(body).length>0);resolve();}catch(error){reject(error);}

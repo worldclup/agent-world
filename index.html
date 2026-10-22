@@ -69,6 +69,21 @@
   #cancel-settings { background: var(--panel); }
   @media (max-width: 400px) { .building-options { grid-template-columns: 1fr; } }
   #log { flex: 1; min-height: 0; max-height: none; border-width: 1px; border-radius: 0; }
+  .chat-panel { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 8px; }
+  .chat-panel h2 { font-size: 15px; margin: 0; }
+  .chat-panel small, #chat-status { font-size: 11px; color: var(--muted); }
+  #chat-log { max-height: 180px; border: 1px solid var(--line); margin: 8px 0; padding: 8px; }
+  #chat-log li { white-space: normal; font: 12px/1.6 var(--font-body); overflow-wrap: anywhere; padding: 9px 11px; margin-bottom: 8px; border: 1px solid; }
+  #chat-log li:last-child { margin-bottom: 0; }
+  #chat-log .chat-user { background: #243e60; border-color: #537da9; border-right: 3px solid #8fc7ff; margin-left: 16px; }
+  #chat-log .chat-user strong { color: #a8d5ff; }
+  #chat-log .chat-assistant { background: #392e2a; border-color: #82604e; border-left: 3px solid #f0aa88; margin-right: 16px; }
+  #chat-log .chat-assistant strong { color: #ffc6a6; }
+  #chat-log p { margin: 3px 0; white-space: pre-wrap; }
+  #chat-input { width: 100%; min-height: 62px; resize: vertical; background: var(--panel); color: var(--navy); border: 1px solid var(--line); padding: 8px; font: 12px var(--font-body); }
+  #chat-form button { font: 12px var(--font-body); padding: 5px 8px; border-width: 1px; }
+  #chat-form button:disabled { opacity: .5; cursor: wait; }
+  @media (max-width: 800px) { .sidebar:has(.chat-panel) { height: auto; min-height: 600px; } }
   #log li { white-space: normal; overflow-wrap: anywhere; font: 12px/1.8 var(--font-body); padding: 10px 12px; }
   #log .activity { border-left: 3px solid var(--activity-color, #79a9ef); margin-bottom: 5px; background: #1d2e49; }
   .activity-read { --activity-color: #62c7ee; }
@@ -211,6 +226,19 @@
     </select>
   </div>
   <ul id="log" aria-label="กิจกรรมล่าสุดของ Agent" data-i18n-aria-label="กิจกรรมล่าสุดของ Agent"></ul>
+  <section class="chat-panel" aria-labelledby="chat-title">
+    <h2 id="chat-title" data-i18n="chat.title">AI Chat · OpenAI</h2>
+    <small data-i18n="chat.notice">Text chat only. Messages are sent to OpenAI. API usage is billed separately.</small>
+    <details class="theme-select" id="chat-sessions"><summary id="chat-session-trigger" data-i18n="chat.choose">Choose a session</summary><div class="theme-select-options" id="chat-session-options"></div></details>
+    <label><input type="checkbox" id="chat-confirm"><small data-i18n="chat.confirm">I have stopped using this session in the IDE and want to append this message.</small></label>
+    <ul id="chat-log" role="log" aria-live="polite" aria-label="Chat" data-i18n-aria-label="chat.title"></ul>
+    <form id="chat-form">
+      <textarea id="chat-input" maxlength="4000" required aria-label="Message" data-i18n-aria-label="chat.placeholder"></textarea>
+      <button id="chat-send" type="submit" data-i18n="chat.send">Send</button>
+      <button id="chat-clear" type="button" data-i18n="chat.clear">New chat</button>
+    </form>
+    <p id="chat-status" role="status"></p>
+  </section>
   </aside>
   </div>
   <aside id="agent-tooltip" role="tooltip" hidden><strong id="agent-tooltip-name"></strong><p id="agent-tooltip-state"></p><p id="agent-tooltip-task"></p></aside>
@@ -246,5 +274,6 @@
 <script src="/i18n.js"></script>
 <script src="/office-backgrounds.js"></script>
 <script src="/office.js"></script>
+<script src="/chat.js"></script>
 </body>
 </html>

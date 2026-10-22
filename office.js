@@ -165,7 +165,7 @@ function addActivity(a, ev) {
   a={...a};
   const li = document.createElement('li');li.className=`activity activity-${a.state}`;
   const head=document.createElement('div');head.className='activity-head';
-  const name=document.createElement('b');name.className=a.kind==='codex'?'agent-codex':'agent-claude';name.textContent=a.kind==='codex'?'Codex':'Claude';
+  const name=document.createElement('b');name.className=a.kind==='codex'?'agent-codex':'agent-claude';name.textContent=a.kind==='chat'?'Chat AI':a.kind==='codex'?'Codex':'Claude';
   const identity=document.createElement('div');identity.className='activity-identity';
   const project=document.createElement('span');project.className='activity-project';project.textContent=`{ ${a.project} }`;
   identity.append(name,project);
@@ -1086,7 +1086,7 @@ function drawAgent(a, t) {
 function drawTags(a, t) {
   const { sx: x, sy: y } = a;
   const codex = a.kind === 'codex';
-  const name = codex ? 'Codex' : 'Claude';
+  const name = a.kind==='chat'?'Chat AI':codex ? 'Codex' : 'Claude';
   ctx.font = '500 5px "Pixelify Sans", "Noto Sans Thai", sans-serif'; const w = ctx.measureText(name).width + 5;
   a.tagWidth = w;
   rect(x - w / 2, y + 3, w, 8, codex ? 'rgba(28,31,38,.95)' : 'rgba(217,119,87,.96)');
@@ -1125,7 +1125,7 @@ function updateTooltip() {
     document.getElementById('agent-tooltip-state').textContent=i18n.t(zoneSign(zone).description);
     document.getElementById('agent-tooltip-task').textContent='';
   } else {
-  document.getElementById('agent-tooltip-name').textContent = `${a.kind === 'codex' ? 'Codex' : 'Claude'} · ${a.resident&&!a.sessionSid?i18n.t(a.project):a.project}`;
+  document.getElementById('agent-tooltip-name').textContent = `${a.kind==='chat'?'Chat AI':a.kind === 'codex' ? 'Codex' : 'Claude'} · ${a.resident&&!a.sessionSid?i18n.t(a.project):a.project}`;
   document.getElementById('agent-tooltip-state').textContent = a.resident && !a.sessionSid ? i18n.t('สมาชิกประจำ · ยังไม่เชื่อม session') : `${i18n.t('สถานะ')}: ${labels[a.state] || i18n.t('ทำงาน')} (${i18n.t('จากกิจกรรมล่าสุด')})`;
   document.getElementById('agent-tooltip-task').textContent = a.sleeping ? `${i18n.t('นอนพัก')} · ${i18n.t(upperBedAt(a) ? 'เตียงชั้นบน' : 'เตียงชั้นล่าง')} (${i18n.t('ภาพเคลื่อนไหวเท่านั้น')})` : a.sleepSpot ? i18n.t('กำลังเดินไปพักงีบ') : (a.resident&&!a.sessionSid?i18n.t(a.text):a.text) || i18n.t(a.state === 'idle' ? 'เดินเล่น / พักใน Lounge' : 'กำลังทำงาน');
   }

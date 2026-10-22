@@ -13,6 +13,8 @@
 - [ ] Review historical `assets/detailed/` content and branch notes before publishing additional branches/tags.
 - [ ] Confirm `.env`, logs, and dependencies are not tracked. `.gitignore` is not a secret scanner.
 - [ ] Use DEMO for public screenshots. The local server reads real session folders automatically when available.
+- [ ] Keep session continuation opt-in (`OFFICE_SESSION_CHAT=0` in the distributed example); never publish the developer's `.env`.
+- [ ] Verify Claude-only support, Codex disabled state, consent, and no automatic retry. Do not use a live personal session for automated release tests.
 
 ## Reproducibility
 
@@ -20,6 +22,7 @@
 - [ ] Open http://localhost:4321 and test DEMO without agent session files.
 - [ ] Check all three layouts, four building styles, room hover, movement, and animated backgrounds visually.
 - [ ] Add a sanitized screenshot to the README and document known limitations.
+- [ ] Follow [CHAT.md](CHAT.md) for an approved manual chat test, including direct startup `.env` loading and disabled-send messages; do not promise live IDE synchronization.
 
 ## Publish after approval
 
