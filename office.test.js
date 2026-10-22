@@ -8,8 +8,65 @@ const document = { getElementById(id) { if (!elements.has(id)) elements.set(id, 
 const settingsStore = new Map();
 const localStorage = { getItem:key=>settingsStore.get(key), setItem:(key,value)=>settingsStore.set(key,value) };
 const context = vm.createContext({ document, localStorage, Image:class {}, EventSource:class {}, requestAnimationFrame:noop, setTimeout, clearTimeout });
+vm.runInContext(fs.readFileSync('office-backgrounds.js','utf8'),context);
 vm.runInContext(fs.readFileSync('office.js','utf8'),context);
 vm.runInContext(`
+  // Art is free to evolve; enforce reproducibility, safe geometry and isolation from simulation.
+  const originalLighting=lighting;
+  const backgroundGeometry=new Map();
+  const backgroundState=()=>JSON.stringify({objects,zones,agents:[...agents],blocked:[...blocked],areas:AREAS,entry:ENTRY});
+  for(const layout of Object.keys(OFFICE_LAYOUTS)) {
+    setLayout(layout);
+    const expectedSigns={home:3,medium:5,large:4};
+    const roomSigns=AREAS.filter(area=>zoneSign(area));
+    if(roomSigns.length!==expectedSigns[layout])throw new Error('Missing signs for layout: '+layout);
+    for(const area of roomSigns) {
+      if(hoveredZone(...zonePoint(area))!==area||!zoneSign(area).description||!/^[A-Z ]+$/.test(zoneSign(area).label))throw new Error('Room sign hover must follow active layout');
+    }
+    for(const area of AREAS) {
+      if(area.x<1||area.y<1||area.x+area.w>COLS-1||area.y+area.h>ROWS-1)throw new Error('Zone floor exceeds building');
+      if(AREAS.some(other=>other!==area&&other.x<area.x+area.w&&other.x+other.w>area.x&&other.y<area.y+area.h&&other.y+other.h>area.y))throw new Error('Zone floors overlap');
+    }
+    const alignedFloors={
+      home:[['WORK',10,1,7,7],['MEETING',1,1,6,7],['QUIET',1,9,6,6],['LOUNGE',10,9,7,6]],
+      medium:[['WORKSPACE',9,1,12,7],['MEETING',1,1,8,6],['QUIET',1,9,7,6],['REST',1,15,7,4],['SERVER',21,1,4,8]],
+      large:[['MEETING',1,1,10,7],['QUIET ROOM',1,17,9,4],['SERVER',20,13,11,8]],
+    };
+    for(const [title,x,y,w,h] of alignedFloors[layout])for(let gx=x;gx<x+w;gx++)for(let gy=y;gy<y+h;gy++) {
+      const area=AREAS.find(a=>gx>=a.x&&gx<a.x+a.w&&gy>=a.y&&gy<a.y+a.h);
+      if(area?.title!==title)throw new Error('Floor gap before room wall: '+layout+' '+title+' '+gx+','+gy);
+    }
+    for(const building of Object.keys(BUILDINGS)) {
+      setBuilding(building);
+      for(const atmosphere of Object.keys(BACKGROUNDS))for(const daylight of [0,1]) {
+        backgroundTheme=atmosphere;
+        lighting={...originalLighting,daylight,label:daylight?'กลางวัน':'กลางคืน'};
+        const before=backgroundState(),savedRect=rect,savedPoly=poly;
+        const capture=()=>{
+          const calls=[];
+          try {
+            rect=(x,y,w,h,color)=>{
+              if(![x,y,w,h].every(Number.isFinite)||w<0||h<0||Math.abs(x)>W*4||Math.abs(y)>H*4||w>W*4||h>H*4)throw new Error('Invalid background rectangle: '+[layout,x,y,w,h]);
+              calls.push(['rect',x,y,w,h,color]);
+            };
+            poly=(points,color)=>{
+              if(points.length<3||points.some(p=>p.length!==2||!p.every(Number.isFinite)||Math.abs(p[0])>W*4||Math.abs(p[1])>H*4))throw new Error('Invalid background polygon: '+layout);
+              calls.push(['poly',points,color]);
+            };
+            drawBangkok(12345);
+          } finally {rect=savedRect;poly=savedPoly;}
+          return JSON.stringify(calls);
+        };
+        const first=capture();
+        if(first!==capture())throw new Error('Background must be deterministic for the same time');
+        if(first==='[]')throw new Error('Background must contain surroundings');
+        if(before!==backgroundState())throw new Error('Background must not mutate office simulation');
+        if(building==='modern'&&atmosphere==='rain'&&daylight===1)backgroundGeometry.set(layout,first);
+      }
+    }
+  }
+  if(new Set(backgroundGeometry.values()).size!==Object.keys(OFFICE_LAYOUTS).length)throw new Error('Every office size needs distinct surroundings');
+  lighting=originalLighting;setLayout('large');setBuilding('modern');backgroundTheme='rain';
   const counts={home:2,medium:6,large:8};
   for(const layout of Object.keys(OFFICE_LAYOUTS)) {
     setLayout(layout);
@@ -71,7 +128,7 @@ vm.runInContext(`
       if(Math.max(...desks.map(o=>o.x))-Math.min(...desks.map(o=>o.x))>6||Math.max(...desks.map(o=>o.y))-Math.min(...desks.map(o=>o.y))>3)throw new Error('Medium desks must stay clustered');
       const seats=[...zones.read.filter(([x])=>x>=work.x),...zones.write];
       for(const a of seats)for(const b of seats)if(key(...a)!==key(...b)&&route(a,b).length>14)throw new Error('Medium colleagues must have short walking routes');
-      if(objects.some(o=>o.kind==='glass'&&o.x>=work.x&&o.x<work.x+work.w&&o.y>=work.y&&o.y<work.y+work.h))throw new Error('Medium workspace must stay open');
+      if(objects.some(o=>o.kind==='glass'&&o.x>work.x&&o.x<work.x+work.w&&o.y>=work.y&&o.y<work.y+work.h))throw new Error('Medium workspace must stay open inside boundary glass');
       const lounge=AREAS.find(a=>a.title==='LOUNGE'),quiet=AREAS.find(a=>a.title==='QUIET');
       if(!lounge||lounge.x>COLS/2||lounge.x+lounge.w<COLS/2||lounge.y>ROWS/2||lounge.y+lounge.h<ROWS/2)throw new Error('Medium lounge must occupy center');
       if(objects.filter(o=>o.kind==='readingDesk'&&o.x>=quiet.x&&o.x<quiet.x+quiet.w).length!==2)throw new Error('Medium quiet room must include individual desks');
@@ -144,6 +201,11 @@ vm.runInContext(`
       const depth=EXTERIOR_HEIGHT;
       const highestBase=minEdgeY+depth;
       for(const face of exterior.slice(0,2))if(Math.abs(face.pts[2][1]-face.pts[1][1]-depth)>1e-9)throw new Error('All building faces must have equal height');
+      for(let floor=0;floor*WALL+8<depth;floor++)for(const edge of [[iso(1,ROWS-1),iso(COLS-1,ROWS-1)],[iso(COLS-1,1),iso(COLS-1,ROWS-1)]]) {
+        const top=floor*WALL+5,bottom=top+3;
+        const band=[up(edge[0],-top),up(edge[1],-top),up(edge[1],-bottom),up(edge[0],-bottom)];
+        if(!exterior.some(p=>p.color===BUILDINGS[theme].trim&&JSON.stringify(p.pts)===JSON.stringify(band)))throw new Error('Exterior storeys must match main office wall height');
+      }
       if(iso(1,ROWS-1)[0]!==VIEW.x||iso(COLS-1,1)[0]!==VIEW.x+VIEW.w)throw new Error('Building must meet both horizontal viewport edges');
       // Ground/base must be below the crop across both faces, not only at the front corner.
       if(highestBase<=VIEW.y+VIEW.h)throw new Error('Building base must remain hidden below viewport');

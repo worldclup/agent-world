@@ -11,6 +11,7 @@
     "watch": [
       "server.js",
       "office.js",
+      "office-backgrounds.js",
       "index.html",
       "assets"
     ],

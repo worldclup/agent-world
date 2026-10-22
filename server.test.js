@@ -34,3 +34,21 @@ try {
   vm.runInContext('walk(pollDir, (_,e) => polled.push(e), false); if(polled.length!==1) throw new Error("Polling missed appended event"); walk(pollDir, (_,e) => polled.push(e), false); if(polled.length!==1) throw new Error("Polling duplicated event");',context);
 } finally { fs.unlinkSync(file); fs.rmdirSync(dir); }
 console.log('PASS: Codex prompt, exec tool activity, and latest-state replay on SSE connection.');
+async function checkBackgroundScript() {
+  const html=fs.readFileSync('index.html','utf8');
+  assert.ok(html.indexOf('/office-backgrounds.js')>=0&&html.indexOf('/office-backgrounds.js')<html.indexOf('/office.js'));
+  await new Promise((resolve,reject)=>{
+    let status,headers;
+    request({url:'/office-backgrounds.js'}, {
+      writeHead(code,value){status=code;headers=value;},
+      end(body){
+        try {
+          assert.equal(status,200);assert.match(headers['Content-Type'],/javascript/);
+          assert.match(String(body),/function drawOfficeSurroundings/);resolve();
+        } catch(error){reject(error);}
+      }
+    });
+  });
+  console.log('PASS: background renderer loads before office and is served as JavaScript.');
+}
+checkBackgroundScript().catch(error=>{console.error(error);process.exitCode=1;});

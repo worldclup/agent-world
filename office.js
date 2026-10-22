@@ -46,7 +46,7 @@ const deco = (x, y, kind, opt = {}) => objects.push({ x, y, w: 1, d: 1, kind, ..
 
 const AREAS = [
   { x: 1, y: 1, w: 10, h: 7, floor: 'carpet', title: 'MEETING' },
-  { x: 1, y: 17, w: 10, h: 4, floor: 'wood', title: 'QUIET ROOM' },
+  { x: 1, y: 17, w: 9, h: 4, floor: 'wood', title: 'QUIET ROOM' },
   { x: 13, y: 1, w: 18, h: 8, floor: 'tile', title: 'WORKSPACE' },
   { x: 1, y: 12, w: 10, h: 5, floor: 'wood', title: 'LOUNGE' },
   { x: 20, y: 13, w: 11, h: 8, floor: 'dark', title: 'SERVER' },
@@ -206,12 +206,12 @@ function setLayout(name) {
   } else {
     const home=name==='home';
     AREAS.push(...(home?[
-      {x:11,y:1,w:6,h:7,floor:'tile',title:'WORK'}, {x:11,y:9,w:6,h:6,floor:'wood',title:'LOUNGE'},
+      {x:10,y:1,w:7,h:7,floor:'tile',title:'WORK'}, {x:10,y:9,w:7,h:6,floor:'wood',title:'LOUNGE'},
       {x:1,y:1,w:6,h:7,floor:'carpet',title:'MEETING'}, {x:1,y:9,w:6,h:6,floor:'wood',title:'QUIET'},
     ]:[
-      {x:10,y:1,w:11,h:7,floor:'tile',title:'WORKSPACE'}, {x:1,y:1,w:8,h:6,floor:'carpet',title:'MEETING'},
-      {x:10,y:9,w:11,h:7,floor:'wood',title:'LOUNGE'}, {x:1,y:10,w:7,h:5,floor:'carpet',title:'QUIET'},
-      {x:1,y:16,w:7,h:3,floor:'wood',title:'REST'}, {x:22,y:1,w:3,h:8,floor:'dark',title:'SERVER'},
+      {x:9,y:1,w:12,h:7,floor:'tile',title:'WORKSPACE'}, {x:1,y:1,w:8,h:6,floor:'carpet',title:'MEETING'},
+      {x:10,y:9,w:11,h:7,floor:'wood',title:'LOUNGE'}, {x:1,y:9,w:7,h:6,floor:'carpet',title:'QUIET'},
+      {x:1,y:15,w:7,h:4,floor:'wood',title:'REST'}, {x:21,y:1,w:4,h:8,floor:'dark',title:'SERVER'},
       {x:21,y:10,w:4,h:8,floor:'wood',title:'KITCHEN'},
     ]));
     const xs=home?[11,14]:[11,14,17],ys=home?[2]:[2,5];
@@ -409,68 +409,28 @@ function drawBangkok(t) {
   const theme=BACKGROUNDS[backgroundTheme];
   const day = lighting.daylight, twilight = lighting.label === 'ยามเย็น' || lighting.label === 'ยามเช้า';
   const mix = (a,b) => '#' + [1,3,5].map(i => Math.round(parseInt(a.slice(i,i+2),16)*(1-day)+parseInt(b.slice(i,i+2),16)*day).toString(16).padStart(2,'0')).join('');
-  const sky = ctx.createLinearGradient(0,0,0,H);
+  const sky = ctx.createLinearGradient(0,VIEW.y,0,VIEW.y+VIEW.h);
   sky.addColorStop(0,mix(...theme.sky));
   sky.addColorStop(.48,twilight ? (backgroundTheme==='neon'?'#895e9d':'#e6ad9f') : mix(...theme.horizon));
   sky.addColorStop(1,mix(...theme.base));
-  ctx.fillStyle=sky;ctx.fillRect(0,0,W,H);
-  // Small pixel celestial bodies and clouds sit behind Bangkok's layered skyline.
+  ctx.fillStyle=sky;ctx.fillRect(VIEW.x,VIEW.y,VIEW.w,VIEW.h);
+  // The surroundings change with office elevation, while atmosphere stays independent.
   if(day<.35){
-    for(let i=0;i<38;i++) rect((i*79+19)%W,8+(i*31)%82,1,1,'#d9e6ef');
-    rect(577,23,14,14,'#fff0be');rect(582,20,9,3,'#fff0be');rect(582,22,12,11,mix(...theme.sky));
+    for(let i=0;i<38;i++) rect(VIEW.x+(i*79+19)%VIEW.w,VIEW.y+4+(i*31)%42,1,1,'#d9e6ef');
+    const mx=VIEW.x+VIEW.w*.85,my=VIEW.y+14;
+    rect(mx,my,12,12,'#fff0be');rect(mx+4,my-2,7,3,'#fff0be');rect(mx+4,my,10,9,mix(...theme.sky));
   } else {
-    rect(568,28,20,20,twilight?'#ffd398':'#fff1ce');
-    [[60,29],[322,19],[475,54]].forEach(([x,y])=>{rect(x,y,43,5,'#ffffff55');rect(x+12,y-4,24,5,'#ffffff55');});
+    rect(VIEW.x+VIEW.w*.85,VIEW.y+12,16,16,twilight?'#ffd398':'#fff1ce');
+    for(const u of [.12,.48,.7]){const x=VIEW.x+VIEW.w*u,y=VIEW.y+22+u*15;rect(x,y,32,4,'#ffffff55');rect(x+8,y-3,18,4,'#ffffff55');}
   }
-  // Staggered distant neighborhoods, with breathing room between taller clusters.
-  const distant=[[-12,33,66],[25,21,47],[51,39,83],[97,25,55],[129,32,104],[169,19,61],[199,45,49],[250,24,73],[281,36,58],[326,23,93],[358,42,67],[411,27,48],[449,35,89],[491,21,63],[523,39,107],[571,25,75],[605,37,53],[651,28,82]];
-  distant.forEach(([x,w,h],i)=>{
-    const base=179+(i%3)*6;
-    rect(x,base-h,w,h,mix(...theme.far));
-    rect(x+3,base-h-3,w-6,3,mix(...theme.far));
-  });
-  if(backgroundTheme==='rain') {
-    for(let i=0;i<4;i++) { const x=((t/600+i*179)%(W+160))-160; rect(x,125+i*9,155,5,'#d4e5ef17');rect(x+28,121+i*9,90,4,'#d4e5ef12'); }
+  const style=BUILDINGS[buildingTheme];
+  ctx.save();ctx.beginPath();ctx.rect(VIEW.x,VIEW.y,VIEW.w,VIEW.h);ctx.clip();
+  drawOfficeSurroundings(t,{near:mix(...theme.near),far:mix(...theme.far),base:mix(...theme.base),sky:mix(...theme.sky),accent:theme.accent,leaf:mix('#24483c',buildingTheme==='garden'?'#6f9e68':'#739574'),roof:style.facade[0],trim:style.trim});
+  if(backgroundTheme==='rain')for(let i=0;i<4;i++) {
+    const x=VIEW.x+((t/600+i*179)%(VIEW.w+160))-160;
+    rect(x,VIEW.y+45+i*13,155,3,'#d4e5ef17');
   }
-  // Original skyline silhouettes: stepped high-rise, rooftop tanks, antennas and shophouses.
-  if(backgroundTheme==='sunset') {
-    rect(525,109,25,14,day<.35?'#d5b7d9':'#ffdbad');
-    rect(521,114,33,7,day<.35?'#d5b7d9':'#ffdbad');
-  }
-  const towers=[[-9,78,29,199],[27,111,35,192],[56,64,25,211],[91,143,31,189],[116,87,42,207],[172,59,34,199],[217,95,28,194],[249,68,45,216],[310,126,35,198],[341,71,27,211],[392,83,42,200],[440,119,31,192],[467,63,24,207],[516,74,30,204],[550,153,37,194],[582,98,28,212],[628,67,43,203]];
-  towers.forEach(([x,h,w,base],i)=>{
-    const y=base-h;
-    rect(x+4,y+5,w,h,mix('#16243e','#718fa6'));rect(x,y,w,h,mix(...theme.near));
-    rect(x,y,w,3,mix('#42526d','#b1c2ce'));
-    if(i===3||i===14){rect(x+6,y-9,w-12,9,mix(...theme.near));rect(x+w/2,y-17,2,8,'#72869b');}
-    else {rect(x+5,y-7,9,7,mix('#34405a','#8299a6'));rect(x+6,y-9,7,2,'#596e85');}
-    for(let row=0;row<Math.floor((h-8)/9);row++) for(let col=0;col<Math.floor((w-5)/7);col++){
-      const lit=(row*11+col*7+i)%5<2;
-      rect(x+4+col*7,y+7+row*9,3,5,day<.6&&lit?theme.accent:mix('#142239','#c4dbe6'));
-    }
-    if(i===8){for(let n=0;n<4;n++)rect(x+w-8,y+12+n*10,8,8,mix('#394064','#d7e3e9'));}
-    if(backgroundTheme==='neon' && i%3===0) {
-      const neon=i%2?'#ed8acb':'#6bd9e5';
-      rect(x+2,y+h-20,w-4,9,day<.6?neon:'#8297b7');rect(x+5,y+h-17,w-10,2,'#27304c');
-      if(day<.6)rect(x,y+h-9,w,5,i%2?'#df70be22':'#62dbed22');
-    }
-  });
-  if(backgroundTheme==='sunset') {
-    for(let i=0;i<3;i++)rect((t/900+i*205)%(W+100)-100,132+i*8,70,2,'#edc2cb25');
-  }
-  // Elevated railway, with an animated train visible between the office and skyline.
-  rect(0,166,W,7,mix('#33435a','#8e9eac'));rect(0,165,W,2,'#b3c0ca');
-  for(let x=22;x<W;x+=88)rect(x,173,7,28,mix('#29394e','#a3b0b8'));
-  const trainX=(t/85)%(W+124)-124;
-  rect(trainX,151,118,13,'#e3eaf1');rect(trainX,161,118,3,'#cf5b56');
-  for(let i=0;i<12;i++)rect(trainX+5+i*9,154,6,5,'#3c6683');
-  // Distant rooftops sit below the high-rise office, with no ground-level road in view.
-  for(let i=0;i<7;i++){
-    const x=i<3?i*25:W-100+(i-3)*25,y=H-101+(i%3)*9;
-    rect(x,y,22,62,mix('#344158','#9facb7'));rect(x-1,y-3,24,5,mix('#57677c','#c9c5b8'));
-    rect(x+5,y-10,7,7,'#748e9c');
-    for(let n=0;n<4;n++)rect(x+5,y+8+n*10,4,5,day<.6?'#dbb16d':'#c8dce4');
-  }
+  ctx.restore();
 }
 
 function drawBuildingExterior() {
@@ -481,22 +441,22 @@ function drawBuildingExterior() {
   const left = [iso(1,maxY),iso(maxX,maxY)], right = [iso(maxX,1),iso(maxX,maxY)];
   const face = (edge, top, bottom, color) => poly([up(edge[0],-top),up(edge[1],-top),up(edge[1],-bottom),up(edge[0],-bottom)],color);
   face(left,0,depth,style.facade[0]); face(right,0,depth,style.facade[1]);
-  // Two enclosed rental floors below the existing open office make three storeys.
-  for(let floor=0;floor<2;floor++) {
-    const z=10+floor*52;
-    face(left,z-5,z-2,style.trim);face(right,z-5,z-2,style.facade[0]);
+  // Repeat the main office's floor-to-floor height down both exterior faces.
+  for(let floor=0;floor*WALL<depth;floor++) {
+    const slab=floor*WALL,z=slab+16;
+    face(left,slab+5,Math.min(slab+8,depth),style.trim);face(right,slab+5,Math.min(slab+8,depth),style.trim);
+    if(z+42>depth)continue;
     for(const side of ['front','side']) {
       const end=side==='front'?maxX:maxY;
       const point=a=>side==='front'?iso(a,maxY):iso(maxX,a);
       for(let a=2;a+1.5<end-1;a+=3) {
-        if(side==='front'&&floor===1&&a+1.5>ENTRY[0]-.4&&a<ENTRY[0]+2.4)continue;
         const lit=lighting.daylight<.6&&(a+floor)%3===0;
-        face([point(a),point(a+1.5)],z,z+28,C.navy);
-        face([point(a+.12),point(a+1.38)],z+2,z+26,lit?'#edc587':C.sky);
-        face([point(a+.7),point(a+.8)],z+2,z+26,style.trim);
-        face([point(a-.1),point(a+1.6)],z+28,z+30,style.trim);
+        face([point(a),point(a+1.5)],z,z+40,C.navy);
+        face([point(a+.12),point(a+1.38)],z+2,z+38,lit?'#edc587':C.sky);
+        face([point(a+.7),point(a+.8)],z+2,z+38,style.trim);
+        face([point(a-.1),point(a+1.6)],z+40,z+42,style.trim);
         if(buildingTheme==='loft')face([point(a-.2),point(a+1.7)],z-2,z,C.woodDark);
-        if(buildingTheme==='garden'&&floor===0)face([point(a),point(a+1.5)],z+25,z+28,C.leaf);
+        if(buildingTheme==='garden')face([point(a),point(a+1.5)],z+37,z+40,C.leaf);
       }
     }
   }
@@ -504,13 +464,6 @@ function drawBuildingExterior() {
   face([iso(1,maxY),iso(1.35,maxY)],0,depth,style.trim);
   face([iso(maxX-.35,maxY),iso(maxX,maxY)],0,depth,style.trim);
   face([iso(maxX,maxY-.35),iso(maxX,maxY)],0,depth,style.trim);
-  const door=ENTRY[0]-.15;
-  face([iso(door,maxY),iso(door+2.3,maxY)],64,depth,C.navy);
-  face([iso(door+.15,maxY),iso(door+2.15,maxY)],66,depth-2,C.sky2);
-  face([iso(door+1.08,maxY),iso(door+1.22,maxY)],66,depth,C.navy);
-  poly(quad(door-.25,maxY-.05,2.8,.8).map(p=>up(p,-61)),style.trim);
-  face([iso(door-.25,maxY+.75),iso(door+2.55,maxY+.75)],61,64,C.navy);
-  poly(quad(door-.25,maxY,2.8,.7).map(p=>up(p,-depth)),style.trim);
   if(buildingTheme==='cyber') {
     face([iso(maxX-.1,maxY),iso(maxX,maxY)],0,depth,'#ed83db');
     face([iso(maxX,maxY-.15),iso(maxX,maxY)],0,depth,'#5de6e6');
@@ -567,7 +520,6 @@ function drawCompactRoom(t) {
     wallQuad('r',22.15,22.32,61,63,statusColor);
     wallText('r',22.45,61,count?'RUNNING · '+count:'IDLE','bold 3px monospace',statusColor);
   }
-  if(officeLayout!=='medium')AREAS.forEach(a=>floorText(a.x+.3,a.y+a.h-.4,a.title));
 }
 const zoneNames={WORKSPACE:'ทำงาน',MEETING:'ประชุม',LOUNGE:'นั่งเล่น',QUIET:'มุมสงบ',REST:'พักผ่อน',SERVER:'เซิร์ฟเวอร์',KITCHEN:'ครัว'};
 const zoneSigns={
@@ -577,17 +529,31 @@ const zoneSigns={
   REST:{x:1,y:17,h:35,label:'BEDROOM',description:'พักผ่อนและนอนพักบนเตียงสองชั้น'},
   SERVER:{x:21,y:7.5,h:21,label:'SERVER',description:'ดูแลเซิร์ฟเวอร์และตรวจสถานะคำสั่ง'},
 };
-const zonePoint=area=>{const s=zoneSigns[area.title];return up(iso(s.x,s.y),s.h);};
-const zoneSignSlope=area=>['MEETING','QUIET','REST','SERVER'].includes(area.title)?-.5:.5;
+const layoutSigns={
+  medium:zoneSigns,
+  home:{
+    WORK:{x:10,y:2,h:20,slope:-.5,label:'WORKSPACE',description:'ห้องทำงานและเครื่องเซิร์ฟเวอร์'},
+    MEETING:{x:7,y:2,h:20,label:'MEETING',description:'ประชุมและวางแผนงานร่วมกัน'},
+    QUIET:{x:7,y:10,h:20,label:'QUIET ROOM',description:'อ่านหนังสือและทำงานอย่างสงบ'},
+  },
+  large:{
+    WORKSPACE:{x:18,y:1,h:21,label:'WORKSPACE',description:'พื้นที่โต๊ะทำงานร่วมกัน'},
+    MEETING:{x:11,y:3,h:20,label:'MEETING',description:'ประชุมและนำเสนอแผนงาน'},
+    'QUIET ROOM':{x:10,y:19,h:20,slope:-.5,label:'BEDROOM',description:'พักผ่อนและนอนพักบนเตียงสองชั้น'},
+    SERVER:{x:20,y:15,h:20,label:'SERVER',description:'ดูแลเซิร์ฟเวอร์และตรวจสถานะคำสั่ง'},
+  },
+};
+const zoneSign=area=>layoutSigns[officeLayout][area.title];
+const zonePoint=area=>{const s=zoneSign(area);return up(iso(s.x,s.y),s.h);};
+const zoneSignSlope=area=>zoneSign(area).slope??(['MEETING','QUIET','REST','SERVER'].includes(area.title)?-.5:.5);
 const zoneSignWidth=()=>16;
 function hoveredZone(x,y) {
-  return officeLayout==='medium' ? AREAS.find(area=>{if(!zoneSigns[area.title])return false;const [px,py]=zonePoint(area);return Math.abs(x-px)<=zoneSignWidth(area)/2+2&&Math.abs(y-py-zoneSignSlope(area)*(x-px))<=7;}) : undefined;
+  return AREAS.find(area=>{if(!zoneSign(area))return false;const [px,py]=zonePoint(area);return Math.abs(x-px)<=zoneSignWidth(area)/2+2&&Math.abs(y-py-zoneSignSlope(area)*(x-px))<=7;});
 }
 function drawZoneLabels() {
-  if(officeLayout!=='medium')return;
   ctx.save();ctx.font='bold 5px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
   for(const area of AREAS) {
-    if(!zoneSigns[area.title])continue;
+    if(!zoneSign(area))continue;
     const [x,y]=zonePoint(area),width=zoneSignWidth(area);
     ctx.save();ctx.translate(x,y);ctx.transform(1,zoneSignSlope(area),0,1,0,0);
     rect(-width/2,-4,width,8,C.navy);
@@ -613,7 +579,6 @@ function drawRoom(t) {
   // floor edge (gives the slab thickness)
   poly([iso(1, 21), iso(31, 21), up(iso(31, 21), -6), up(iso(1, 21), -6)], '#b9c9e0');
   poly([iso(31, 1), iso(31, 21), up(iso(31, 21), -6), up(iso(31, 1), -6)], '#cbd8ea');
-  AREAS.forEach(a => floorText(a.x + .4, a.y + a.h - .4, a.title));
   // Recessed cable trays stay walkable and connect the rack rows to the control desk.
   for(const x of [22,24]) {
     poly(quad(x+.42,14,.16,4),'#142037');
@@ -1045,8 +1010,8 @@ function updateTooltip() {
   tooltip.hidden = !zone&&!a;
   if (!zone&&!a) return;
   if(zone) {
-    document.getElementById('agent-tooltip-name').textContent=zoneSigns[zone.title].label;
-    document.getElementById('agent-tooltip-state').textContent=zoneSigns[zone.title].description;
+    document.getElementById('agent-tooltip-name').textContent=zoneSign(zone).label;
+    document.getElementById('agent-tooltip-state').textContent=zoneSign(zone).description;
     document.getElementById('agent-tooltip-task').textContent='';
   } else {
   document.getElementById('agent-tooltip-name').textContent = `${a.kind === 'codex' ? 'Codex' : 'Claude'} · ${a.project}`;

@@ -165,7 +165,7 @@ http.createServer((req, res) => {
     req.on('close', () => clients.delete(res));
   } else {
     const pathname = new URL(req.url, 'http://localhost').pathname;
-    const allowed = { '/': 'index.html', '/index.html': 'index.html', '/office.js': 'office.js', '/assets/roguelikeCity_magenta.png': 'assets/roguelikeCity_magenta.png' };
+    const allowed = { '/': 'index.html', '/index.html': 'index.html', '/office.js': 'office.js', '/office-backgrounds.js': 'office-backgrounds.js', '/assets/roguelikeCity_magenta.png': 'assets/roguelikeCity_magenta.png' };
     const file = allowed[pathname];
     const iconFile = /^\/assets\/icons\/(coffee|book|edit|globe|message|terminal|users|play|info-box|sliders)\.svg$/.test(pathname) ? pathname.slice(1) : null;
     const target = file || iconFile;
