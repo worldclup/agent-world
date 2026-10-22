@@ -45,49 +45,65 @@ function object(x, y, w, d, kind, opt = {}) {
 const deco = (x, y, kind, opt = {}) => objects.push({ x, y, w: 1, d: 1, kind, ...opt, depth: x + y + .3 });
 
 const AREAS = [
-  { x: 1, y: 1, w: 10, h: 7, floor: 'carpet', title: 'MEETING' },
-  { x: 1, y: 17, w: 9, h: 4, floor: 'wood', title: 'QUIET ROOM' },
-  { x: 13, y: 1, w: 18, h: 8, floor: 'tile', title: 'WORKSPACE' },
-  { x: 1, y: 12, w: 10, h: 5, floor: 'wood', title: 'LOUNGE' },
-  { x: 20, y: 13, w: 11, h: 8, floor: 'dark', title: 'SERVER' },
+  { x: 1, y: 1, w: 7, h: 7, floor: 'carpet', title: 'MEETING' },
+  { x: 1, y: 19, w: 7, h: 2, floor: 'wood', title: 'QUIET ROOM' },
+  { x: 11, y: 1, w: 6, h: 6, floor: 'developer', title: 'DEVELOPER' },
+  { x: 17, y: 1, w: 3, h: 6, floor: 'tester', title: 'TESTER' },
+  { x: 20, y: 1, w: 3, h: 6, floor: 'uxui', title: 'UX/UI' },
+  { x: 25, y: 10, w: 6, h: 4, floor: 'tile', title: 'TEAM OFFICE' },
+  { x: 1, y: 8, w: 7, h: 5, floor: 'carpet', title: 'HUDDLE' },
+  { x: 25, y: 14, w: 6, h: 3, floor: 'carpet', title: 'FOCUS' },
+  { x: 25, y: 19, w: 6, h: 2, floor: 'wood', title: 'LOCKERS' },
+  { x: 1, y: 13, w: 7, h: 6, floor: 'wood', title: 'KITCHEN' },
+  { x: 11, y: 10, w: 12, h: 7, floor: 'wood', title: 'LOUNGE' },
+  { x: 25, y: 1, w: 6, h: 9, floor: 'dark', title: 'SERVER' },
 ];
 
 // lounge
-object(2, 12, 4, 1, 'sofa'); object(3, 14, 2, 1, 'coffeeTable'); object(7, 14, 1, 1, 'armchair'); object(8, 12, 3, 1, 'coffeeBar');
-const barSeats = [[8,13],[9,13],[10,13]];
+object(12,10,4,1,'sofa');object(17,10,4,1,'sofa');object(14,13,2,1,'coffeeTable');object(19,12,1,1,'armchair');
+object(14,15,4,1,'tvConsole');object(13,15,1,1,'speaker');object(18,15,1,1,'speaker');
+// A low reading nook sits beside, rather than in front of, the television area.
+object(20,13,2,2,'roundTable');object(22,11,1,2,'bookcase',{low:true});
+deco(20,12,'chair',{readingSeat:true});deco(22,14,'chair',{readingSeat:true});
+object(22,15,1,1,'bedside');object(21,16,1,1,'plant');
+object(2,14,3,1,'kitchenCounter',{microwave:true});object(1,14,1,1,'fridge');object(5,14,3,1,'coffeeBar');
+object(2,16,3,1,'diningTable');deco(1,16,'chair');deco(5,16,'chair');
+const barSeats = [[5,15],[6,15],[7,15]];
 barSeats.forEach(([x,y]) => deco(x, y, 'barStool'));
-const napSpots = [[3,19],[7,19],[4,19],[8,19]];
-[[3,19],[7,19]].forEach(([x,y]) => deco(x,y,'daybed'));
-// Quiet room below the lounge; leave a two-tile doorway at x=7..8.
-object(1,17,6,1,'restWall');
-object(9,17,2,1,'restWall');
-object(10,17,1,4,'restWall');
-object(1, 1, 1, 1, 'plant'); object(1, 7, 1, 1, 'plant');
+const napSpots = [[1,20],[6,20],[2,20],[7,20]];
+[[1,20],[6,20]].forEach(([x,y]) => deco(x,y,'daybed'));
+// Each wing shares room boundaries; circulation stays on the lounge-facing side.
+object(1,19,3,1,'glass',{edge:true});object(6,19,3,1,'glass',{edge:true,joinAt:'end'});object(8,19,1,2,'glass',{edge:true});
+object(1,1,1,1,'plant');
 // Clear glass partitions around the meeting area, with open walkways between panels.
-object(11, 1, 1, 7, 'glass', { edge:true });
-object(1, 8, 4, 1, 'glass', { edge:true }); object(7, 8, 4, 1, 'glass', { edge:true });
-object(20, 13, 1, 8, 'glass', { edge:true });
-object(20, 13, 4, 1, 'glass', { edge:true }); object(27, 13, 4, 1, 'glass', { edge:true });
+object(8,1,1,3,'glass',{edge:true});object(8,6,1,3,'glass',{edge:true});
+object(25,11,1,1,'glass',{edge:true});object(25,14,1,1,'glass',{edge:true,trimEnd:true});
+object(25,10,6,1,'glass',{edge:true,joinAt:'start'});object(25,14,6,1,'glass',{edge:true,joinAt:'start'});
 // workspace
-for (const y of [2, 6]) for (const x of [14, 17, 20, 23]) { object(x, y, 2, 1, 'desk'); deco(x, y + 1, 'chair'); deco(x + 1, y + 1, 'chair'); }
-object(30, 1, 1, 1, 'plant'); object(26, 7, 1, 1, 'plant');
+for (const y of [2,5]) for (const x of [11,14,17,20]) { object(x,y,2,1,'desk',{role:x<17?'developer':x<20?'tester':'uxui'});deco(x,y+1,'chair'); }
+// Smaller rooms sit around a continuous central circulation route.
+for(const x of [26,29]){object(x,11,2,1,'desk');deco(x,12,'chair');}
+object(25,1,1,3,'glass',{edge:true});object(25,6,1,5,'glass',{edge:true});
+// The lounge is an open central hub; meeting rooms share the left wing.
+object(1,8,8,1,'glass',{edge:true,joinAt:'end'});
+object(8,11,1,5,'glass',{edge:true});object(8,18,1,1,'glass',{edge:true});
+object(1,13,8,1,'glass',{edge:true,joinAt:'end'});
+object(2,10,3,2,'diningTable');deco(1,10,'chair');deco(5,11,'chair');
+object(26,15,2,1,'readingDesk');object(29,15,2,1,'readingDesk');object(30,16,1,1,'bookcase');
+deco(26,16,'chair');deco(29,16,'chair');
+object(26,20,4,1,'locker');object(30,20,1,1,'locker');
+object(30,1,1,1,'plant');
 // meeting
-object(4, 3, 4, 2, 'table');
-[[3, 3], [3, 4], [8, 3], [8, 4], [5, 2], [6, 2], [5, 5], [6, 5]].forEach(([x, y]) => deco(x, y, 'chair'));
-object(1, 20, 1, 1, 'plant'); object(11, 20, 1, 1, 'plant');
+object(3,3,3,2,'table');
+[[2,3],[6,4],[3,2],[4,5]].forEach(([x,y])=>deco(x,y,'chair'));
 // server
-for (const y of [15,17]) for (const x of [22,24]) object(x,y,1,1,'rack');
-object(22,19,3,1,'controlDesk');
-[22,24].forEach(x => deco(x,20,'chair'));
-object(29,18,1,1,'serverStatus');
-object(30, 20, 1, 1, 'plant');
-// entry
-object(13, 20, 1, 1, 'plant'); object(18, 20, 1, 1, 'plant');
+for(const y of [2,4])for(const x of [27,29])object(x,y,1,1,'rack');
+object(27,6,3,1,'controlDesk');deco(27,7,'chair');
 
 const zones = {
-  read: [[14,3],[17,3],[20,3],[23,3]], write: [[14,7],[17,7],[20,7],[23,7]],
-  web: [[27,3],[29,3]], bash: [[22,20],[24,20],[25,15],[25,17]],
-  think: [[5,2],[6,5],[3,3],[8,4]], idle: [[2,14],[5,14],[3,16],[6,16]],
+  read: [[11,3],[14,3],[17,3],[20,3],[26,12],[26,16],[29,16]], write: [[11,6],[14,6],[17,6],[20,6],[29,12]],
+  web: [[30,12],[28,12]], bash: [[27,7],[28,4]],
+  think: [[2,3],[6,4],[3,2],[4,5],[2,9],[6,11]], idle: [[12,12],[18,13],[20,12],[22,14],[27,19]],
 };
 zones.talk = zones.think; zones.agent = zones.think;
 const labels = { read:'อ่าน / ค้นหา', write:'แก้ไขไฟล์', web:'ค้นเว็บ', bash:'รันคำสั่ง', think:'กำลังคิด', talk:'กำลังตอบ', agent:'ประสานงาน', idle:'พักผ่อน' };
@@ -190,7 +206,7 @@ function expireAgents(now) {
   }
 }
 
-const roamSpots = [[2,14],[5,14],[3,16],[6,16],[8,16],[9,15],[2,16], ...barSeats];
+const roamSpots = [[12,12],[18,13],[20,12],[22,14],[12,14],[19,14],[9,15],[24,18],[27,19], ...barSeats];
 const OFFICE_LAYOUTS={home:{cols:18,rows:16},medium:{cols:26,rows:20},large:{cols:32,rows:22}};
 let officeLayout='large';
 const largePlan={objects:objects.map(o=>({...o})),areas:AREAS.map(a=>({...a})),blocked:[...blocked],zones:JSON.parse(JSON.stringify(zones)),bar:barSeats.map(p=>[...p]),nap:napSpots.map(p=>[...p]),roam:roamSpots.map(p=>[...p])};
@@ -350,9 +366,15 @@ function setBuilding(theme) {
   const {sky,sky2}=C;
   Object.assign(C,BUILDINGS.modern.palette,BUILDINGS[theme].palette,{sky,sky2});
 }
+function workRoleColor(role) {return {developer:C.blue,tester:C.leaf,uxui:C.orange}[role];}
 function floorColor(kind, x, y) {
   const odd = (x + y) % 2;
   const style=BUILDINGS[buildingTheme];
+  const tint=workRoleColor(kind);
+  if(tint) {
+    const base=floorColor('tile',x,y);
+    return '#'+[1,3,5].map(i=>Math.round(parseInt(base.slice(i,i+2),16)*.82+parseInt(tint.slice(i,i+2),16)*.18).toString(16).padStart(2,'0')).join('');
+  }
   if (!kind) return style.walkway[odd?0:1];
   const pair=style.floors?.[kind];
   if(pair)return pair[odd?0:1];
@@ -537,10 +559,15 @@ const layoutSigns={
     QUIET:{x:7,y:10,h:20,label:'QUIET ROOM',description:'อ่านหนังสือและทำงานอย่างสงบ'},
   },
   large:{
-    WORKSPACE:{x:18,y:1,h:21,label:'WORKSPACE',description:'พื้นที่โต๊ะทำงานร่วมกัน'},
-    MEETING:{x:11,y:3,h:20,label:'MEETING',description:'ประชุมและนำเสนอแผนงาน'},
-    'QUIET ROOM':{x:10,y:19,h:20,slope:-.5,label:'BEDROOM',description:'พักผ่อนและนอนพักบนเตียงสองชั้น'},
-    SERVER:{x:20,y:15,h:20,label:'SERVER',description:'ดูแลเซิร์ฟเวอร์และตรวจสถานะคำสั่ง'},
+    DEVELOPER:{x:14,y:1,h:21,label:'DEVELOPER',description:'โซนพัฒนาโปรแกรม · โต๊ะทำงาน 4 จุด'},
+    TESTER:{x:18.5,y:1,h:21,label:'TESTER',description:'โซนทดสอบและตรวจสอบคุณภาพ · โต๊ะทำงาน 2 จุด'},
+    'UX/UI':{x:21.5,y:1,h:21,label:'UX/UI',description:'โซนออกแบบประสบการณ์และหน้าจอ · โต๊ะทำงาน 2 จุด'},
+    MEETING:{x:8,y:2,h:20,label:'MEETING',description:'ประชุมและนำเสนอแผนงาน'},
+    'QUIET ROOM':{x:8,y:19.5,h:20,slope:-.5,label:'BEDROOM',description:'พักผ่อนและนอนพักบนเตียงสองชั้น'},
+    SERVER:{x:25,y:2,h:20,label:'SERVER',description:'ดูแลเซิร์ฟเวอร์และตรวจสถานะคำสั่ง'},
+    HUDDLE:{x:8,y:8.5,h:20,slope:-.5,label:'HUDDLE ROOM',description:'ห้องประชุมเล็กสำหรับคุยงานกลุ่มย่อย'},
+    FOCUS:{x:31,y:15.5,h:22,slope:-.5,label:'FOCUS ROOM',description:'โต๊ะอ่านหนังสือและทำงานเงียบ ๆ'},
+    'TEAM OFFICE':{x:25,y:10.75,h:20,slope:-.5,label:'TEAM OFFICE',description:'ห้องทำงานทีมย่อย ใกล้พื้นที่ทำงานหลัก'},
   },
 };
 const zoneSign=area=>layoutSigns[officeLayout][area.title];
@@ -575,17 +602,16 @@ function drawRoom(t) {
     poly(quad(x, y, 1, 1), floorColor(area && area.floor, x, y));
   }
   poly(quad(15, 21, 2, 1), C.blue); poly(quad(15.2, 21.15, 1.6, .7), C.blue2);   // entry mat
-  poly(quad(2, 13.2, 7, 3.2), '#9fb6dc'); poly(quad(2.2, 13.4, 6.6, 2.8), '#cfdcf1');   // lounge rug
+  poly(quad(11.3,10.2,11.4,6.5),C.edge);poly(quad(11.5,10.4,11,6.1),C.white); // central lounge rug
   // floor edge (gives the slab thickness)
   poly([iso(1, 21), iso(31, 21), up(iso(31, 21), -6), up(iso(1, 21), -6)], '#b9c9e0');
   poly([iso(31, 1), iso(31, 21), up(iso(31, 21), -6), up(iso(31, 1), -6)], '#cbd8ea');
   // Recessed cable trays stay walkable and connect the rack rows to the control desk.
-  for(const x of [22,24]) {
-    poly(quad(x+.42,14,.16,4),'#142037');
-    poly(quad(x+.47,14,.05,4),'#467390');
+  for(const x of [27,29]) {
+    poly(quad(x+.42,2,.16,5),'#142037');
+    poly(quad(x+.47,2,.05,5),'#467390');
   }
-  poly(quad(21,18.4,4,.2),'#142037');poly(quad(21,18.47,4,.06),'#467390');
-  poly(quad(21,16.4,.16,3),'#142037');
+  poly(quad(26,7.4,4,.2),'#142037');poly(quad(26,7.47,4,.06),'#467390');
 
   // walls
   wallQuad('l', 1, 21, 0, WALL, C.wallSide); wallQuad('r', 1, 31, 0, WALL, C.wall);
@@ -625,15 +651,17 @@ function drawRoom(t) {
   // company logo
   wallQuad('r', 16, 25.8, 34, 60, C.navy); wallQuad('r', 16.3, 17.6, 38, 56, C.blue); wallQuad('r', 16.65, 17.25, 41, 53, C.white);
   wallText('r', 18, 42, 'DHITETA AI', 'bold 8px "Press Start 2P", monospace', '#fff');
-  // big web screen
-  wallQuad('r', 26.3, 30.7, 18, 52, C.navy);
-  wallQuad('r', 26.6, 30.4, 21, 49, (t / 700 | 0) % 2 ? '#2f7be0' : '#3d8bea');
-  wallQuad('r', 27.4, 29.2, 27, 43, '#9fd0f5'); wallQuad('r', 27.9, 28.7, 31, 39, '#5aa0f0');
   // meeting: TV + whiteboard on the left wall
-  wallQuad('l', 2, 5.8, 20, 46, C.navy); wallQuad('l', 2.3, 5.5, 23, 43, (t / 900 | 0) % 2 ? '#3d8bea' : '#5aa0f0');
-  wallText('l', 2.7, 30, 'Q4 PLAN', 'bold 7px "Press Start 2P", monospace', '#fff');
-  wallQuad('l', 6.1, 7.8, 36, 57, '#c9d7ec'); wallQuad('l', 6.23, 7.67, 38, 55, '#fff');
-  wallQuad('l', 6.45, 7.3, 49, 50, C.blue); wallQuad('l', 6.45, 7.45, 45, 46, C.orange); wallQuad('l', 6.45, 7.05, 41, 42, C.blue);
+  wallQuad('l',2,5.8,24,54,C.navy);wallQuad('l',2.2,5.6,26,52,C.blue3);
+  wallText('l',3.9,39,'MEETING','bold 4px monospace',C.white,'center');
+  wallQuad('r',1.7,6.7,28,57,C.edge);wallQuad('r',1.85,6.55,30,55,C.white);
+  wallText('r',2.1,48,'ROADMAP','bold 4px monospace',C.navy);
+  for(let i=0;i<3;i++)wallQuad('r',2.1+i*1.3,3+i*1.3,36,40,[C.blue,C.orange,C.leaf][i]);
+  // The small meeting room has its own screen and planning board, away from the entry.
+  wallQuad('l',8.4,10.8,24,51,C.navy);wallQuad('l',8.55,10.65,26,49,C.blue3);
+  wallText('l',9.6,37,'HUDDLE','bold 4px monospace',C.white,'center');
+  wallQuad('l',11.1,12.7,30,54,C.edge);wallQuad('l',11.22,12.58,32,52,C.white);
+  for(let i=0;i<3;i++)wallQuad('l',11.4,12.3-i*.15,46-i*4,47-i*4,[C.blue,C.orange,C.leaf][i]);
   // clock
   const [cx, cy] = wallPt('r', 11.5, 46);
   ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.ellipse(cx, cy, 6, 7, 0, 0, Math.PI * 2); ctx.fill();
@@ -797,14 +825,37 @@ function drawObject(o, t) {
       box(x+.35,y+.46,w-.7,.02,18,C.blue3,C.blue,C.blue3,9);
       box(x+.65,y+.49,w-1.3,.02,1,C.glassTop,C.glassTop,C.glassTop,14);
       break;
+    case 'roundTable': {
+      const [cx,cy]=iso(x+w/2,y+d/2);
+      ctx.fillStyle='rgba(15,42,82,.18)';ctx.beginPath();ctx.ellipse(cx,cy,20,10,0,0,Math.PI*2);ctx.fill();
+      box(x+.85,y+.85,.3,.3,11,C.woodDark,C.woodDark,C.woodDark);
+      for(const [dy,color] of [[-10,C.woodDark],[-12,C.wood]]) {
+        ctx.fillStyle=color;ctx.beginPath();ctx.ellipse(cx,cy+dy,20,10,0,0,Math.PI*2);ctx.fill();
+      }
+      box(x+.5,y+.5,.7,.45,1,C.white,C.edge,C.edge,12);
+      box(x+.83,y+.5,.03,.45,1,C.blue3,C.blue3,C.blue3,13);
+      box(x+1.25,y+.9,.2,.2,3,C.white,C.edge,C.edge,12);
+      break;
+    }
     case 'diningTable':
       for(const dx of [.15,w-.3])for(const dy of [.15,d-.3])box(x+dx,y+dy,.15,.15,10,C.woodDark,C.woodDark,C.woodDark);
       box(x,y,w,d,2,C.wood,C.woodDark,C.woodDark,10);
       for(const dx of [.4,w-1])box(x+dx,y+.6,.5,.5,1,C.white,C.edge,C.edge,12);
       break;
+    case 'locker':
+      box(x,y,w,d,25,C.edge,C.blue3,C.navy);
+      for(const z of [1,13]) {
+        for(let i=0;i<w;i++) {
+          box(x+i+.08,y+.94,.84,.06,11,C.edge,C.wallSide,C.edge,z);
+          box(x+i+.65,y+1,.05,.04,2,C.navy,C.navy,C.navy,z+4);
+          box(x+i+.25,y+1,.35,.04,1,C.white,C.white,C.white,z+8);
+          for(let vent=0;vent<2;vent++)box(x+i+.2,y+1,.4,.04,.3,C.navy,C.navy,C.navy,z+1+vent);
+        }
+      }
+      break;
     case 'bookcase': {
-      box(x,y,w,d,27,C.wood,C.woodDark,C.woodDark);
-      for(const z of [4,12,20]) {
+      box(x,y,w,d,o.low?18:27,C.wood,C.woodDark,C.woodDark);
+      for(const z of (o.low?[2,10]:[4,12,20])) {
         box(x+.1,y+.1,w-.2,d-.2,1,C.wood,C.wood,C.wood,z);
         for(let i=0;i<Math.max(w,d)*3;i++)box(x+(w>d?.15+i*.3:.84),y+(w>d?.84:.15+i*.3),w>d?.18:.14,w>d?.14:.18,6,[C.blue,C.orange,C.leaf,C.edge][i%4],C.navy,C.blue3,z+1);
       }
@@ -831,6 +882,7 @@ function drawObject(o, t) {
       });
       box(x + .4, y + .55, .9, .25, 1, '#dfe7f2', '#c9d7ec', '#c9d7ec', 9);
       box(x + 1.6, y + .5, .2, .2, 3, C.orange, '#b85f2d', '#c96a33', 9);
+      if(o.role)box(x+.05,y+.96,w-.1,.04,2,workRoleColor(o.role),workRoleColor(o.role),workRoleColor(o.role),5);
       break;
     }
     case 'table':
@@ -950,10 +1002,11 @@ function drawAgent(a, t) {
   a.look = a.look || lookFor(a.sid, a.kind);
   const working = !a.path.length && ['read', 'write', 'web', 'bash'].includes(a.state);
   const atBar = !a.path.length && a.state === 'idle' && barSeats.some(([sx,sy]) => a.x === sx && a.y === sy);
-  const sit = atBar || (!a.path.length && (['read', 'write'].includes(a.state) || (a.state === 'bash' && a.y === 20 && a.x <= 24)));
+  const atReadingSeat=!a.path.length&&a.state==='idle'&&objects.some(o=>o.readingSeat&&o.x===a.x&&o.y===a.y);
+  const sit = atBar || atReadingSeat || (!a.path.length && (['read', 'write'].includes(a.state) || (a.state === 'bash' && a.y === 20 && a.x <= 24)));
   const frame = a.path.length ? 1 + (Math.floor(t / 140) % 2) : 0;
   const prop = a.path.length ? '' : a.state === 'idle' ? 'mug' : ['think', 'talk', 'agent'].includes(a.state) ? 'tablet' : '';
-  const img = sprite(a.look, atBar ? 'front' : a.dir >= 2 ? 'front' : 'back', frame, prop, sit);
+  const img = sprite(a.look, atBar||atReadingSeat ? 'front' : a.dir >= 2 ? 'front' : 'back', frame, prop, sit);
   ctx.fillStyle = 'rgba(15,42,82,.25)'; ctx.beginPath(); ctx.ellipse(x, y, 8, 3.5, 0, 0, Math.PI * 2); ctx.fill();
   const typing = working && sit && Math.floor(t / 180) % 2 ? 1 : 0;      // tiny bob while typing
   const bob = a.path.length ? (frame === 1 ? 1 : 0) : 0;

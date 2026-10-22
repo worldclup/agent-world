@@ -17,11 +17,11 @@ vm.runInContext(`
   const backgroundState=()=>JSON.stringify({objects,zones,agents:[...agents],blocked:[...blocked],areas:AREAS,entry:ENTRY});
   for(const layout of Object.keys(OFFICE_LAYOUTS)) {
     setLayout(layout);
-    const expectedSigns={home:3,medium:5,large:4};
+    const expectedSigns={home:3,medium:5,large:9};
     const roomSigns=AREAS.filter(area=>zoneSign(area));
     if(roomSigns.length!==expectedSigns[layout])throw new Error('Missing signs for layout: '+layout);
     for(const area of roomSigns) {
-      if(hoveredZone(...zonePoint(area))!==area||!zoneSign(area).description||!/^[A-Z ]+$/.test(zoneSign(area).label))throw new Error('Room sign hover must follow active layout');
+      if(hoveredZone(...zonePoint(area))!==area||!zoneSign(area).description||!/^[A-Z /]+$/.test(zoneSign(area).label))throw new Error('Room sign hover must follow active layout');
     }
     for(const area of AREAS) {
       if(area.x<1||area.y<1||area.x+area.w>COLS-1||area.y+area.h>ROWS-1)throw new Error('Zone floor exceeds building');
@@ -30,7 +30,7 @@ vm.runInContext(`
     const alignedFloors={
       home:[['WORK',10,1,7,7],['MEETING',1,1,6,7],['QUIET',1,9,6,6],['LOUNGE',10,9,7,6]],
       medium:[['WORKSPACE',9,1,12,7],['MEETING',1,1,8,6],['QUIET',1,9,7,6],['REST',1,15,7,4],['SERVER',21,1,4,8]],
-      large:[['MEETING',1,1,10,7],['QUIET ROOM',1,17,9,4],['SERVER',20,13,11,8]],
+      large:[['MEETING',1,1,7,7],['QUIET ROOM',1,19,7,2],['SERVER',25,1,6,9]],
     };
     for(const [title,x,y,w,h] of alignedFloors[layout])for(let gx=x;gx<x+w;gx++)for(let gy=y;gy<y+h;gy++) {
       const area=AREAS.find(a=>gx>=a.x&&gx<a.x+a.w&&gy>=a.y&&gy<a.y+a.h);
@@ -67,7 +67,7 @@ vm.runInContext(`
   }
   if(new Set(backgroundGeometry.values()).size!==Object.keys(OFFICE_LAYOUTS).length)throw new Error('Every office size needs distinct surroundings');
   lighting=originalLighting;setLayout('large');setBuilding('modern');backgroundTheme='rain';
-  const counts={home:2,medium:6,large:8};
+  const counts={home:2,medium:6,large:10};
   for(const layout of Object.keys(OFFICE_LAYOUTS)) {
     setLayout(layout);
     if(objects.filter(o=>o.kind==='desk').length!==counts[layout])throw new Error('Wrong desk count: '+layout);
@@ -186,6 +186,70 @@ vm.runInContext(`
     const doors=layout==='home'?[[7,4],[7,5],[10,4],[10,5],[7,11],[7,12],[10,11],[10,12]]:layout==='medium'?[[4,7],[5,7],[9,4],[9,5],[8,16],[8,17],[14,8],[15,8],[8,12],[8,13],[21,5],[21,6]]:[];
     if(doors.some(p=>blocked.has(key(...p))))throw new Error('Partition doorway must stay open');
     for(const o of objects)if(o.x<1||o.y<1||o.x+o.w>COLS-1||o.y+o.d>ROWS-1)throw new Error('Furniture outside floor: '+layout);
+    if(layout==='large') {
+      for(const [title,role,count] of [['DEVELOPER','developer',4],['TESTER','tester',2],['UX/UI','uxui',2]]) {
+        const area=AREAS.find(a=>a.title===title),desks=objects.filter(o=>o.role===role);
+        if(!area||area.floor!==role||desks.length!==count||desks.some(o=>o.x<area.x||o.x+o.w>area.x+area.w||o.y<area.y||o.y+o.d>area.y+area.h))throw new Error('Role desks must match work zone: '+title);
+        if(objects.some(o=>o.kind==='glass'&&o.x>=area.x&&o.x<area.x+area.w&&o.y>=area.y&&o.y<area.y+area.h))throw new Error('Role zones must remain open to each other');
+      }
+      for(const theme of Object.keys(BUILDINGS)) {
+        setBuilding(theme);
+        const floors=['developer','tester','uxui'].map(kind=>floorColor(kind,12,2));
+        if(new Set(floors).size!==3||floors.some(color=>!/^#[0-9a-f]{6}$/i.test(color)||color===floorColor('tile',12,2)))throw new Error('Role floor colors must stay distinct in every theme');
+      }
+      setBuilding('modern');
+      for(const title of ['HUDDLE','FOCUS','TEAM OFFICE','LOCKERS','KITCHEN'])if(!AREAS.some(a=>a.title===title))throw new Error('Large office zone missing: '+title);
+      if(AREAS.some(a=>a.title==='STORAGE')||objects.some(o=>o.kind==='storageShelf'))throw new Error('Personal lockers must replace storage room');
+      const huddle=AREAS.find(a=>a.title==='HUDDLE'),meeting=AREAS.find(a=>a.title==='MEETING');
+      if(huddle.w*huddle.h>=meeting.w*meeting.h)throw new Error('Second meeting room must be smaller');
+      const inArea=(o,title)=>{const a=AREAS.find(a=>a.title===title);return o.x>=a.x&&o.y>=a.y&&o.x+o.w<=a.x+a.w&&o.y+o.d<=a.y+a.h;};
+      for(const [kind,title,count] of [['diningTable','HUDDLE',1],['readingDesk','FOCUS',2],['desk','TEAM OFFICE',2],['locker','LOCKERS',2],['kitchenCounter','KITCHEN',1],['fridge','KITCHEN',1],['tvConsole','LOUNGE',1],['speaker','LOUNGE',2]]) {
+        if(objects.filter(o=>o.kind===kind&&inArea(o,title)).length!==count)throw new Error('Missing large room furniture: '+title+' '+kind);
+      }
+      for(const [kind,title,count] of [['roundTable','LOUNGE',1],['bedside','LOUNGE',1],['bookcase','LOUNGE',1]])if(objects.filter(o=>o.kind===kind&&inArea(o,title)).length!==count)throw new Error('Lounge reading nook missing: '+kind);
+      const loungeShelf=objects.find(o=>o.kind==='bookcase'&&inArea(o,'LOUNGE'));
+      if(!loungeShelf.low)throw new Error('Lounge shelf must stay low');
+      const readingSeats=objects.filter(o=>o.readingSeat);
+      if(readingSeats.length!==2||readingSeats.some(o=>!zones.idle.some(p=>p[0]===o.x&&p[1]===o.y)||!roamSpots.some(p=>p[0]===o.x&&p[1]===o.y)||blocked.has(key(o.x,o.y))))throw new Error('Reading seats must be usable idle destinations');
+      const added=objects.filter(o=>['readingDesk','roundTable','diningTable','locker','tvConsole','speaker','kitchenCounter','fridge'].includes(o.kind));
+      for(const item of added)if(objects.some(o=>o!==item&&o.x<item.x+item.w&&o.x+o.w>item.x&&o.y<item.y+item.d&&o.y+o.d>item.y))throw new Error('New large office furniture overlaps: '+item.kind);
+      for(const p of [[8,4],[8,5],[8,9],[8,10],[4,19],[5,19],[25,4],[25,5],[25,12],[25,13],[25,15],[25,16],[27,19]])if(blocked.has(key(...p))||!route(ENTRY,p).length)throw new Error('New room doorway must be reachable: '+p);
+      for(let x=1;x<=8;x++)if(!blocked.has(key(x,8)))throw new Error('Meeting rooms must not have a connecting door');
+      for(const [start,end,door] of [[1,8,[4,5]],[8,13,[9,10]]])for(let y=start;y<=end;y++)if(blocked.has(key(8,y))===door.includes(y))throw new Error('Meeting room must have only one entrance from main hall');
+      const meetingDisplays=[],savedWallText=wallText;
+      try {wallText=(...args)=>meetingDisplays.push(args);drawRoom(1000);} finally {wallText=savedWallText;}
+      for(const name of ['MEETING','HUDDLE','ROADMAP'])if(!meetingDisplays.some(args=>args[3]===name))throw new Error('Meeting display missing: '+name);
+      for(const y of [8,9,17,18])for(let x=9;x<25;x++)if(blocked.has(key(x,y)))throw new Error('Central cross-aisles must remain two tiles wide');
+      const areaByName=title=>AREAS.find(a=>a.title===title);
+      for(const [back,front] of [['MEETING','HUDDLE'],['HUDDLE','KITCHEN'],['KITCHEN','QUIET ROOM'],['SERVER','TEAM OFFICE'],['TEAM OFFICE','FOCUS']]) {
+        const a=areaByName(back),b=areaByName(front);
+        if(a.y+a.h!==b.y||a.x!==b.x)throw new Error('Neighboring rooms must share boundary: '+back+' '+front);
+      }
+      for(const [x,y] of [[8,8],[8,13],[8,19],[25,10],[25,14]])if(!blocked.has(key(x,y)))throw new Error('Shared wall junction missing');
+      if(huddle.h<5)throw new Error('Small meeting room must have more breathing room');
+      for(const rack of objects.filter(o=>o.kind==='rack'))if(!inArea(rack,'SERVER'))throw new Error('Server equipment must move into former team room');
+      if(objects.filter(o=>o.kind==='rack').length!==4)throw new Error('Large server room needs four racks');
+      const bunks=objects.filter(o=>o.kind==='daybed').sort((a,b)=>a.x-b.x),bedroom=areaByName('QUIET ROOM');
+      if(bunks.length!==2||bunks[0].x!==bedroom.x||bunks[1].x+2!==bedroom.x+bedroom.w||bunks.some(o=>o.y+1!==bedroom.y+bedroom.h))throw new Error('Bunks must sit in left and right bedroom corners');
+      if(objects.filter(o=>o.kind==='sofa'&&inArea(o,'LOUNGE')).length!==2)throw new Error('Lounge needs two sofas');
+      for(const sofa of objects.filter(o=>o.kind==='sofa'))if(objects.some(o=>o!==sofa&&o.x<sofa.x+sofa.w&&o.x+o.w>sofa.x&&o.y<sofa.y+sofa.d&&o.y+o.d>sofa.y))throw new Error('Extra sofa must not overlap furniture');
+      const oldServerScreen=[wallPt('r',26.3,18),wallPt('r',30.7,18),wallPt('r',30.7,52),wallPt('r',26.3,52)];
+      let drawsOldScreen=false;const savedScreenPoly=poly;
+      try {poly=(pts)=>{if(JSON.stringify(pts)===JSON.stringify(oldServerScreen))drawsOldScreen=true;};drawRoom(1000);} finally {poly=savedScreenPoly;}
+      if(drawsOldScreen)throw new Error('Server wall display must be removed');
+      if(areaByName('SERVER').y>=areaByName('TEAM OFFICE').y)throw new Error('Server must be behind team office');
+      const hub=AREAS.find(a=>a.title==='LOUNGE');
+      if(!(hub.x<=COLS/2&&hub.x+hub.w>COLS/2&&hub.y<=ROWS/2&&hub.y+hub.h>ROWS/2))throw new Error('Large lounge must be central');
+      if(objects.some(o=>o.kind==='glass'&&o.x>=hub.x&&o.x<hub.x+hub.w&&o.y>=hub.y&&o.y<hub.y+hub.h))throw new Error('Central lounge must stay open');
+      const hubPoint=[17,12];
+      const entryToHub=route(ENTRY,hubPoint),focus=AREAS.find(a=>a.title==='FOCUS');
+      if(entryToHub.length>18||entryToHub.some(([x,y])=>x>=focus.x&&x<focus.x+focus.w&&y>=focus.y&&y<focus.y+focus.h))throw new Error('Entry route to lounge must bypass quiet room');
+      for(const destination of [[14,6],[2,9],[26,16],[25,12],[27,19]])if(route(hubPoint,destination).length>28||!route(hubPoint,destination).length)throw new Error('Rooms need practical routes from lounge');
+      const lockerArea=AREAS.find(a=>a.title==='LOCKERS');
+      if(objects.some(o=>['glass','restWall'].includes(o.kind)&&inArea(o,'LOCKERS'))||lockerArea.y<18)throw new Error('Lockers must be open near front entrance');
+      const tv=objects.find(o=>o.kind==='tvConsole'),sofa=objects.find(o=>o.kind==='sofa');
+      if(tv.y<=sofa.y)throw new Error('Lounge sofa must face television');
+    }
     for(const target of [...Object.values(zones).flat(),...roamSpots,...napSpots]) {
       const path=route(ENTRY,target);
       if(!path.length || blocked.has(key(...target)))throw new Error('Unreachable layout target: '+layout+' '+target);
