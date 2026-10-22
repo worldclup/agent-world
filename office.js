@@ -257,7 +257,7 @@ function setLayout(name) {
       object(1,8,7,1,'glass',{edge:true,divider:true,joinAt:'end'});object(10,8,7,1,'glass',{edge:true,divider:true,joinAt:'start'});
       Object.assign(zones,{read:[[3,13]],write:[[14,3]],web:[[15,4]],bash:[[12,6]],think:[[1,3],[5,4]],idle:[[11,12],[15,12],[2,13]]});
     } else {
-      object(3,3,4,2,'table');[[2,3],[7,4],[4,2],[5,5]].forEach(([x,y])=>deco(x,y,'chair'));
+      object(3,3,4,2,'table');[[2,3],[2,4],[7,3],[7,4],[4,2],[6,2],[3,5],[5,5]].forEach(([x,y])=>deco(x,y,'chair'));
       object(11,10,4,1,'sofa');object(12,13,2,1,'coffeeTable');object(16,13,1,1,'armchair');object(18,10,3,1,'coffeeBar');
       object(21,10,3,1,'kitchenCounter',{microwave:true});object(24,10,1,1,'fridge');
       object(21,15,3,2,'diningTable');deco(20,15,'chair');deco(24,16,'chair');
@@ -282,7 +282,7 @@ function setLayout(name) {
       deco(2,16,'daybed',{rotated:true});deco(5,17,'daybed');napSpots.push([2,16],[2,17],[5,17],[6,17]);
       object(1,16,1,1,'bedside');object(7,16,1,1,'plant');
     }
-    object(1,1,1,1,'plant');object(COLS-2,1,1,1,'plant');object(1,ROWS-2,1,1,'plant');
+    object(1,1,1,1,home?'plant':'avCabinet');object(COLS-2,1,1,1,'plant');object(1,ROWS-2,1,1,'plant');
     for(let x=0;x<COLS;x++){wall(x,0);if(x!==ENTRY[0]&&x!==ENTRY[0]+1)wall(x,ROWS-1);}
     for(let y=0;y<ROWS;y++){wall(0,y);wall(COLS-1,y);}
     roamSpots.push(...zones.idle,...barSeats);
@@ -569,9 +569,9 @@ const layoutSigns={
     QUIET:{x:7,y:10,h:20,label:'QUIET ROOM',description:'อ่านหนังสือและทำงานอย่างสงบ'},
   },
   large:{
-    DEVELOPER:{x:14,y:1,h:21,label:'DEVELOPER',description:'โซนพัฒนาโปรแกรม · โต๊ะทำงาน 4 จุด'},
-    TESTER:{x:18.5,y:1,h:21,label:'TESTER',description:'โซนทดสอบและตรวจสอบคุณภาพ · โต๊ะทำงาน 2 จุด'},
-    'UX/UI':{x:21.5,y:1,h:21,label:'UX/UI',description:'โซนออกแบบประสบการณ์และหน้าจอ · โต๊ะทำงาน 2 จุด'},
+    DEVELOPER:{x:15,y:7.45,h:21,label:'DEVELOPER',description:'โซนพัฒนาโปรแกรม · โต๊ะทำงาน 4 จุด'},
+    TESTER:{x:20.5,y:7.45,h:21,label:'TESTER',description:'โซนทดสอบและตรวจสอบคุณภาพ · โต๊ะทำงาน 2 จุด'},
+    'UX/UI':{x:24.8,y:7.45,h:21,label:'UX/UI',description:'โซนออกแบบประสบการณ์และหน้าจอ · โต๊ะทำงาน 2 จุด'},
     MEETING:{x:8,y:2,h:20,label:'MEETING',description:'ประชุมและนำเสนอแผนงาน'},
     'QUIET ROOM':{x:8,y:19.5,h:20,slope:-.5,label:'BEDROOM',description:'พักผ่อนและนอนพักบนเตียงสองชั้น'},
     SERVER:{x:25,y:2,h:20,label:'SERVER',description:'ดูแลเซิร์ฟเวอร์และตรวจสถานะคำสั่ง'},

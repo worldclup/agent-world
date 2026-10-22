@@ -42,7 +42,7 @@ vm.runInContext(`
         backgroundTheme=atmosphere;
         lighting={...originalLighting,daylight,label:daylight?'กลางวัน':'กลางคืน'};
         const before=backgroundState(),savedRect=rect,savedPoly=poly;
-        const capture=()=>{
+        const capture=(time=12345)=>{
           const calls=[];
           try {
             rect=(x,y,w,h,color)=>{
@@ -53,12 +53,13 @@ vm.runInContext(`
               if(points.length<3||points.some(p=>p.length!==2||!p.every(Number.isFinite)||Math.abs(p[0])>W*4||Math.abs(p[1])>H*4))throw new Error('Invalid background polygon: '+layout);
               calls.push(['poly',points,color]);
             };
-            drawBangkok(12345);
+            drawBangkok(time);
           } finally {rect=savedRect;poly=savedPoly;}
           return JSON.stringify(calls);
         };
         const first=capture();
         if(first!==capture())throw new Error('Background must be deterministic for the same time');
+        if(layout==='large'&&first===capture(22345))throw new Error('Large office train must move over time');
         if(first==='[]')throw new Error('Background must contain surroundings');
         if(before!==backgroundState())throw new Error('Background must not mutate office simulation');
         if(building==='modern'&&atmosphere==='rain'&&daylight===1)backgroundGeometry.set(layout,first);
@@ -130,6 +131,10 @@ vm.runInContext(`
       for(const a of seats)for(const b of seats)if(key(...a)!==key(...b)&&route(a,b).length>14)throw new Error('Medium colleagues must have short walking routes');
       if(objects.some(o=>o.kind==='glass'&&o.x>work.x&&o.x<work.x+work.w&&o.y>=work.y&&o.y<work.y+work.h))throw new Error('Medium workspace must stay open inside boundary glass');
       const lounge=AREAS.find(a=>a.title==='LOUNGE'),quiet=AREAS.find(a=>a.title==='QUIET');
+      const mediumMeeting=AREAS.find(a=>a.title==='MEETING');
+      const inMediumMeeting=o=>o.x>=mediumMeeting.x&&o.x<mediumMeeting.x+mediumMeeting.w&&o.y>=mediumMeeting.y&&o.y<mediumMeeting.y+mediumMeeting.h;
+      if(objects.filter(o=>o.kind==='chair'&&inMediumMeeting(o)).length!==8)throw new Error('Medium meeting room needs eight chairs');
+      if(!objects.some(o=>o.kind==='avCabinet'&&o.x===1&&o.y===1)||objects.some(o=>o.kind==='plant'&&inMediumMeeting(o)))throw new Error('Medium meeting AV cabinet must replace corner plant');
       if(!lounge||lounge.x>COLS/2||lounge.x+lounge.w<COLS/2||lounge.y>ROWS/2||lounge.y+lounge.h<ROWS/2)throw new Error('Medium lounge must occupy center');
       if(objects.filter(o=>o.kind==='readingDesk'&&o.x>=quiet.x&&o.x<quiet.x+quiet.w).length!==2)throw new Error('Medium quiet room must include individual desks');
       for(const y of [1,2,3,4,7,8,9])if(!blocked.has(key(21,y)))throw new Error('Server glass enclosure missing');
@@ -211,6 +216,10 @@ vm.runInContext(`
       const huddle=AREAS.find(a=>a.title==='HUDDLE'),meeting=AREAS.find(a=>a.title==='MEETING');
       if(huddle.w*huddle.h>=meeting.w*meeting.h)throw new Error('Second meeting room must be smaller');
       const inArea=(o,title)=>{const a=AREAS.find(a=>a.title===title);return o.x>=a.x&&o.y>=a.y&&o.x+o.w<=a.x+a.w&&o.y+o.d<=a.y+a.h;};
+      for(const title of ['DEVELOPER','TESTER','UX/UI']) {
+        const sign=zoneSign(AREAS.find(a=>a.title===title));
+        if(sign.y!==7.45||sign.h!==21||!objects.some(o=>o.kind==='glass'&&o.y===7&&o.w>o.d&&sign.x>=o.x&&sign.x<=o.x+o.w))throw new Error('Work room plaques must be on front glass panels');
+      }
       if(objects.filter(o=>o.kind==='chair'&&inArea(o,'MEETING')).length!==8)throw new Error('Main meeting room needs eight chairs');
       const mainTable=objects.find(o=>o.kind==='table'&&inArea(o,'MEETING'));
       if(mainTable.avControl)throw new Error('AV equipment must not be on meeting table');

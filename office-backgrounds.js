@@ -79,6 +79,22 @@ function drawOfficeSurroundings(t, p) {
     }
     // A river cuts through the distant city, widening toward the observer.
     poly([[w*.64,49],[w*.69,49],[w*.46,149],[w*.34,226],[w*.16,h],[w*.04,h],[w*.23,215],[w*.39,136]],p.sky);
+    // Elevated railway is painted before nearby rooftops so buildings hide the train.
+    const railY=x=>92+x*.085;
+    const railPanel=(x,y,width,height,color)=>poly([[x,railY(x)+y],[x+width,railY(x+width)+y],[x+width,railY(x+width)+y+height],[x,railY(x)+y+height]],color);
+    for(let x=16;x<w;x+=54)rect(x,railY(x)+5,3,13,p.trim);
+    railPanel(0,0,w,6,p.trim);
+    railPanel(0,0,w,2,p.roof);
+    railPanel(0,3,w,1,p.accent+'80');
+    const trainX=((t/180)%(w+108))-84;
+    for(let car=0;car<4;car++) {
+      const x=trainX+car*17;
+      railPanel(x,-5,16,5,p.near);
+      railPanel(x,-6,16,1,p.roof);
+      railPanel(x,-1,16,1,p.accent);
+      for(let window=0;window<4;window++)railPanel(x+2+window*3,-4,2,2,day<.5?p.accent:p.sky);
+      if(car===3)railPanel(x+15,-3,1,2,day<.5?'#fff2c6':p.sky);
+    }
     for(let row=0;row<7;row++){
       const y=62+row*38, size=13+row*3;
       for(let col=-1;col<Math.ceil(w/58)+1;col++){
@@ -95,7 +111,7 @@ function drawOfficeSurroundings(t, p) {
       rect(0,y,w,4,p.far+'b0');
       for(let col=0;col<12;col++)rect(col*w/12+row*3,y+1,2,1,day<.5?p.accent:p.trim);
     }
-    // A thin far bridge reinforces the aerial scale without foreground transport.
+    // A distant road bridge crosses the river below the railway.
     rect(w*.38,119,w*.22,3,p.trim);rect(w*.42,116,w*.16,1,p.accent+'80');
   }
   ctx.restore();
