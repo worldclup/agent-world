@@ -2,6 +2,8 @@
 
 Branch: `experiment/detailed-isometric-assets`.
 
+Current branch behavior and handoff notes: [BRANCH_NOTES.md](../../BRANCH_NOTES.md). The notes below include successive experiments; older statements about source masks, two seated desks, or `hq-furnished-v2.png` are historical and superseded by that snapshot.
+
 ## New architectural study
 
 Three live HQ rooms now share persistent AI simulation: work, lounge, rest. Use the sidebar room buttons (counts included) without reloading. New generated room files: `hq-lounge-v1.png`, `hq-rest-v1.png`. See [rooms-prompts.md](rooms-prompts.md) for prompts, routing behavior and current resting/transfer limits.
