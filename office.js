@@ -60,13 +60,13 @@ const AREAS = [
   { x: 25, y: 1, w: 6, h: 9, floor: 'dark', title: 'SERVER' },
 ];
 
-// lounge
-object(12,10,4,1,'sofa');object(17,10,4,1,'sofa');object(14,13,2,1,'coffeeTable');object(19,12,1,1,'armchair');
-object(14,15,4,1,'tvConsole');object(13,15,1,1,'speaker');object(18,15,1,1,'speaker');
-// A low reading nook sits beside, rather than in front of, the television area.
-object(20,13,2,2,'roundTable');object(22,11,1,2,'bookcase',{low:true});
-deco(20,12,'chair',{readingSeat:true});deco(22,14,'chair',{readingSeat:true});
-object(22,15,1,1,'bedside');object(21,16,1,1,'plant');
+// Two simple furniture groups leave open space instead of layering small decorations.
+const LOUNGE_SPOTS=[{name:'TV',x:11,y:10,w:6,d:7},{name:'CHAT',x:18,y:10,w:4,d:7}];
+object(12,10,4,1,'sofa');object(13,12,2,1,'coffeeTable');
+object(12,15,4,1,'tvConsole');object(11,15,1,1,'speaker');object(16,15,1,1,'speaker');
+object(18,10,4,1,'sofa');object(18,15,4,1,'sofa',{reverse:true});
+object(21,12,1,1,'armchair');
+object(19,12,2,1,'coffeeTable');object(16,12,1,1,'plant');
 object(2,14,3,1,'kitchenCounter',{microwave:true});object(1,14,1,1,'fridge');object(5,14,3,1,'coffeeBar');
 object(2,16,3,1,'diningTable');deco(1,16,'chair');deco(5,16,'chair');
 const barSeats = [[5,15],[6,15],[7,15]];
@@ -75,7 +75,6 @@ const napSpots = [[1,20],[6,20],[2,20],[7,20]];
 [[1,20],[6,20]].forEach(([x,y]) => deco(x,y,'daybed'));
 // Each wing shares room boundaries; circulation stays on the lounge-facing side.
 object(1,19,3,1,'glass',{edge:true});object(6,19,3,1,'glass',{edge:true,joinAt:'end'});object(8,19,1,2,'glass',{edge:true});
-object(1,1,1,1,'plant');
 // Clear glass partitions around the meeting area, with open walkways between panels.
 object(8,1,1,3,'glass',{edge:true});object(8,6,1,3,'glass',{edge:true});
 object(25,10,1,2,'glass',{edge:true});object(25,14,1,1,'glass',{edge:true,trimEnd:true});
@@ -105,8 +104,8 @@ object(9,20,4,1,'locker');object(13,20,1,1,'locker');
 object(26,20,4,1,'bookcase');
 object(30,1,1,1,'plant');
 // meeting
-object(3,3,3,2,'table');
-[[2,3],[6,4],[3,2],[4,5]].forEach(([x,y])=>deco(x,y,'chair'));
+object(3,3,3,2,'table');object(1,1,1,1,'avCabinet');
+[[2,3],[2,4],[6,3],[6,4],[3,2],[5,2],[4,5],[5,5]].forEach(([x,y])=>deco(x,y,'chair'));
 // server
 for(const y of [2,4])for(const x of [27,29])object(x,y,1,1,'rack');
 object(27,6,3,1,'controlDesk');deco(27,7,'chair');
@@ -114,7 +113,7 @@ object(27,6,3,1,'controlDesk');deco(27,7,'chair');
 const zones = {
   read: [[11,3],[14,3],[17,3],[22,3],[26,12],[26,16],[29,16]], write: [[11,6],[14,6],[17,6],[22,6],[29,12]],
   web: [[30,12],[28,12]], bash: [[27,7],[28,4]],
-  think: [[2,3],[6,4],[3,2],[4,5],[2,9],[6,11]], idle: [[12,12],[18,13],[20,12],[22,14],[11,19]],
+  think: [[2,3],[6,4],[3,2],[4,5],[2,9],[6,11]], idle: [[12,12],[20,11],[21,14],[11,19]],
 };
 zones.talk = zones.think; zones.agent = zones.think;
 const labels = { read:'อ่าน / ค้นหา', write:'แก้ไขไฟล์', web:'ค้นเว็บ', bash:'รันคำสั่ง', think:'กำลังคิด', talk:'กำลังตอบ', agent:'ประสานงาน', idle:'พักผ่อน' };
@@ -217,7 +216,7 @@ function expireAgents(now) {
   }
 }
 
-const roamSpots = [[12,12],[18,13],[20,12],[22,14],[12,14],[19,14],[9,15],[24,18],[11,19], ...barSeats];
+const roamSpots = [[12,12],[20,11],[21,14],[12,14],[17,13],[9,15],[24,18],[11,19], ...barSeats];
 const OFFICE_LAYOUTS={home:{cols:18,rows:16},medium:{cols:26,rows:20},large:{cols:32,rows:22}};
 let officeLayout='large';
 const largePlan={objects:objects.map(o=>({...o})),areas:AREAS.map(a=>({...a})),blocked:[...blocked],zones:JSON.parse(JSON.stringify(zones)),bar:barSeats.map(p=>[...p]),nap:napSpots.map(p=>[...p]),roam:roamSpots.map(p=>[...p])};
@@ -614,7 +613,9 @@ function drawRoom(t) {
     poly(quad(x, y, 1, 1), floorColor(area && area.floor, x, y));
   }
   poly(quad(15, 21, 2, 1), C.blue); poly(quad(15.2, 21.15, 1.6, .7), C.blue2);   // entry mat
-  poly(quad(11.3,10.2,11.4,6.5),C.edge);poly(quad(11.5,10.4,11,6.1),C.white); // central lounge rug
+  const lounge=AREAS.find(a=>a.title==='LOUNGE');
+  poly(quad(lounge.x+.1,lounge.y+.1,lounge.w-.2,lounge.h-.2),C.edge);
+  poly(quad(lounge.x+.25,lounge.y+.25,lounge.w-.5,lounge.h-.5),C.wallSide);
   // floor edge (gives the slab thickness)
   poly([iso(1, 21), iso(31, 21), up(iso(31, 21), -6), up(iso(1, 21), -6)], '#b9c9e0');
   poly([iso(31, 1), iso(31, 21), up(iso(31, 21), -6), up(iso(31, 1), -6)], '#cbd8ea');
@@ -744,14 +745,16 @@ function drawObject(o, t) {
     }
     case 'sofa':
       shadowQ(x, y, w, d);
-      box(x, y + .2, w, .8, 7, C.blue2, C.blue3, C.blue3);
-      box(x, y, w, .3, 16, C.blue3, C.blue, C.blue3);
+      box(x, y + (o.reverse ? 0 : .2), w, .8, 7, C.blue2, C.blue3, C.blue3);
+      if(!o.reverse)box(x,y,w,.3,16,C.blue3,C.blue,C.blue3);
       box(x - .05, y, .3, 1, 11, C.navy, C.blue3, C.navy); box(x + w - .25, y, .3, 1, 11, C.navy, C.blue3, C.navy);
-      box(x + .6, y + .35, .6, .2, 6, '#fff', '#e9eef6', '#dfe7f2', 7); box(x + 2.6, y + .35, .6, .2, 6, '#fff', '#e9eef6', '#dfe7f2', 7);
+      for(const dx of [.6,2.6])box(x+dx,y+(o.reverse ? .45 : .35),.6,.2,6,'#fff','#e9eef6','#dfe7f2',7);
+      // The near backrest must cover cushions when the sofa faces away from us.
+      if(o.reverse)box(x,y+.7,w,.3,16,C.blue3,C.blue3,C.navy);
       break;
     case 'armchair':
       shadowQ(x, y, w, d);
-      box(x + .1, y + .1, .8, .8, 6, C.blue2, C.blue3, C.blue3); box(x + .7, y + .1, .25, .8, 14, C.blue3, C.blue, C.navy);
+      box(x + .1, y + .1, .8, .8, 6, C.blue2, C.blue3, C.blue3); box(x + (o.facingRight ? .05 : .7), y + .1, .25, .8, 14, C.blue3, C.blue, C.navy);
       break;
     case 'coffeeTable':
       shadowQ(x, y, w, d);
@@ -837,18 +840,6 @@ function drawObject(o, t) {
       box(x+.35,y+.46,w-.7,.02,18,C.blue3,C.blue,C.blue3,9);
       box(x+.65,y+.49,w-1.3,.02,1,C.glassTop,C.glassTop,C.glassTop,14);
       break;
-    case 'roundTable': {
-      const [cx,cy]=iso(x+w/2,y+d/2);
-      ctx.fillStyle='rgba(15,42,82,.18)';ctx.beginPath();ctx.ellipse(cx,cy,20,10,0,0,Math.PI*2);ctx.fill();
-      box(x+.85,y+.85,.3,.3,11,C.woodDark,C.woodDark,C.woodDark);
-      for(const [dy,color] of [[-10,C.woodDark],[-12,C.wood]]) {
-        ctx.fillStyle=color;ctx.beginPath();ctx.ellipse(cx,cy+dy,20,10,0,0,Math.PI*2);ctx.fill();
-      }
-      box(x+.5,y+.5,.7,.45,1,C.white,C.edge,C.edge,12);
-      box(x+.83,y+.5,.03,.45,1,C.blue3,C.blue3,C.blue3,13);
-      box(x+1.25,y+.9,.2,.2,3,C.white,C.edge,C.edge,12);
-      break;
-    }
     case 'diningTable':
       for(const dx of [.15,w-.3])for(const dy of [.15,d-.3])box(x+dx,y+dy,.15,.15,10,C.woodDark,C.woodDark,C.woodDark);
       box(x,y,w,d,2,C.wood,C.woodDark,C.woodDark,10);
@@ -909,8 +900,17 @@ function drawObject(o, t) {
     case 'table':
       shadowQ(x, y, w, d);
       box(x, y, w, d, 9, C.white, C.edge, '#dfe7f2');
-      for (let i = 0; i < 3; i++) box(x + .5 + i * 1.2, y + .6, .5, .4, 1, '#8d9ab0', '#6b778c', '#6b778c', 9);
+      for (let i = 0; i < 3; i++) box(x + .3 + i * (w - 1) / 3, y + .6, .5, .4, 1, '#8d9ab0', '#6b778c', '#6b778c', 9);
       box(x + 1.7, y + 1.2, .3, .3, 2, '#fff', '#e9eef6', '#dfe7f2', 9);
+      break;
+    case 'avCabinet':
+      shadowQ(x,y,w,d);
+      box(x+.05,y+.05,.9,.9,24,C.navy,C.blue3,C.navy);
+      for(let i=0;i<4;i++) {
+        box(x+.12,y+.85,.72,.08,3,C.edge,C.navy,C.navy,4+i*4.5);
+        box(x+.2,y+.94,.25,.03,1,C.sky,C.sky,C.sky,5+i*4.5);
+        box(x+.65,y+.94,.08,.03,1,C.leaf,C.leaf,C.leaf,5+i*4.5);
+      }
       break;
     case 'chair':
       box(x + .3, y + .3, .4, .4, 5, C.blue3, C.navy, C.navy);
@@ -1023,11 +1023,11 @@ function drawAgent(a, t) {
   a.look = a.look || lookFor(a.sid, a.kind);
   const working = !a.path.length && ['read', 'write', 'web', 'bash'].includes(a.state);
   const atBar = !a.path.length && a.state === 'idle' && barSeats.some(([sx,sy]) => a.x === sx && a.y === sy);
-  const atReadingSeat=!a.path.length&&a.state==='idle'&&objects.some(o=>o.readingSeat&&o.x===a.x&&o.y===a.y);
-  const sit = atBar || atReadingSeat || (!a.path.length && (['read', 'write'].includes(a.state) || (a.state === 'bash' && a.y === 20 && a.x <= 24)));
+  const atSofaSeat=!a.path.length&&a.state==='idle'&&objects.some(o=>o.kind==='sofa'&&a.x>=o.x&&a.x<o.x+o.w&&a.y===o.y+(o.reverse?-1:1));
+  const sit = atBar || atSofaSeat || (!a.path.length && (['read', 'write'].includes(a.state) || (a.state === 'bash' && a.y === 20 && a.x <= 24)));
   const frame = a.path.length ? 1 + (Math.floor(t / 140) % 2) : 0;
   const prop = a.path.length ? '' : a.state === 'idle' ? 'mug' : ['think', 'talk', 'agent'].includes(a.state) ? 'tablet' : '';
-  const img = sprite(a.look, atBar||atReadingSeat ? 'front' : a.dir >= 2 ? 'front' : 'back', frame, prop, sit);
+  const img = sprite(a.look, atBar||atSofaSeat ? 'front' : a.dir >= 2 ? 'front' : 'back', frame, prop, sit);
   ctx.fillStyle = 'rgba(15,42,82,.25)'; ctx.beginPath(); ctx.ellipse(x, y, 8, 3.5, 0, 0, Math.PI * 2); ctx.fill();
   const typing = working && sit && Math.floor(t / 180) % 2 ? 1 : 0;      // tiny bob while typing
   const bob = a.path.length ? (frame === 1 ? 1 : 0) : 0;

@@ -211,14 +211,34 @@ vm.runInContext(`
       const huddle=AREAS.find(a=>a.title==='HUDDLE'),meeting=AREAS.find(a=>a.title==='MEETING');
       if(huddle.w*huddle.h>=meeting.w*meeting.h)throw new Error('Second meeting room must be smaller');
       const inArea=(o,title)=>{const a=AREAS.find(a=>a.title===title);return o.x>=a.x&&o.y>=a.y&&o.x+o.w<=a.x+a.w&&o.y+o.d<=a.y+a.h;};
+      if(objects.filter(o=>o.kind==='chair'&&inArea(o,'MEETING')).length!==8)throw new Error('Main meeting room needs eight chairs');
+      const mainTable=objects.find(o=>o.kind==='table'&&inArea(o,'MEETING'));
+      if(mainTable.avControl)throw new Error('AV equipment must not be on meeting table');
+      const avCabinets=objects.filter(o=>o.kind==='avCabinet'&&inArea(o,'MEETING'));
+      if(avCabinets.length!==1||!blocked.has(key(avCabinets[0].x,avCabinets[0].y)))throw new Error('Meeting room needs a floor-standing AV cabinet');
+      if(avCabinets[0].x!==1||avCabinets[0].y!==1||objects.some(o=>o.kind==='plant'&&inArea(o,'MEETING')))throw new Error('AV cabinet must replace meeting room corner plant');
+      const cabinetParts=[],savedCabinetBox=box;
+      try {box=(...args)=>cabinetParts.push(args);drawObject(avCabinets[0],1000);} finally {box=savedCabinetBox;}
+      if(!cabinetParts.some(p=>p[4]===24)||cabinetParts.filter(p=>p[4]===3).length!==4)throw new Error('AV cabinet needs a floor-standing body and four equipment units');
+      const tableParts=[],savedTableBox=box;
+      try {box=(...args)=>tableParts.push(args);drawObject(mainTable,1000);} finally {box=savedTableBox;}
+      if(tableParts.some(p=>p[0]<mainTable.x||p[1]<mainTable.y||p[0]+p[2]>mainTable.x+mainTable.w||p[1]+p[3]>mainTable.y+mainTable.d))throw new Error('Meeting table accessories must fit tabletop');
       for(const [kind,title,count] of [['diningTable','HUDDLE',1],['readingDesk','FOCUS',1],['readingDesk','FOCUS 2',1],['desk','TEAM OFFICE',2],['locker','LOCKERS',2],['kitchenCounter','KITCHEN',1],['fridge','KITCHEN',1],['tvConsole','LOUNGE',1],['speaker','LOUNGE',2]]) {
         if(objects.filter(o=>o.kind===kind&&inArea(o,title)).length!==count)throw new Error('Missing large room furniture: '+title+' '+kind);
       }
-      for(const [kind,title,count] of [['roundTable','LOUNGE',1],['bedside','LOUNGE',1],['bookcase','LOUNGE',1]])if(objects.filter(o=>o.kind===kind&&inArea(o,title)).length!==count)throw new Error('Lounge reading nook missing: '+kind);
-      const loungeShelf=objects.find(o=>o.kind==='bookcase'&&inArea(o,'LOUNGE'));
-      if(!loungeShelf.low)throw new Error('Lounge shelf must stay low');
-      const readingSeats=objects.filter(o=>o.readingSeat);
-      if(readingSeats.length!==2||readingSeats.some(o=>!zones.idle.some(p=>p[0]===o.x&&p[1]===o.y)||!roamSpots.some(p=>p[0]===o.x&&p[1]===o.y)||blocked.has(key(o.x,o.y))))throw new Error('Reading seats must be usable idle destinations');
+      if(objects.some(o=>['roundTable','chair'].includes(o.kind)&&inArea(o,'LOUNGE')))throw new Error('Conversation lounge must not have round table or reading chairs');
+      if(objects.some(o=>['bookcase','bedside'].includes(o.kind)&&inArea(o,'LOUNGE')))throw new Error('Lounge must stay free of cluttering decorations');
+      const loungePlants=objects.filter(o=>o.kind==='plant'&&inArea(o,'LOUNGE'));
+      if(loungePlants.length!==1||loungePlants[0].x!==16||loungePlants[0].y!==12)throw new Error('Lounge plant must sit between TV seating and conversation area without blocking aisle');
+      const singleSofa=objects.filter(o=>o.kind==='armchair'&&inArea(o,'LOUNGE'));
+      if(singleSofa.length!==1||singleSofa[0].x!==21||singleSofa[0].facingRight)throw new Error('Single sofa must face into conversation area from the right');
+      if(objects.some(o=>o!==singleSofa[0]&&o.x<singleSofa[0].x+1&&o.x+o.w>singleSofa[0].x&&o.y<singleSofa[0].y+1&&o.y+o.d>singleSofa[0].y))throw new Error('Single sofa overlaps furniture');
+      const loungeArea=AREAS.find(a=>a.title==='LOUNGE'),rugPolys=[],savedRugPoly=poly;
+      try {poly=(pts,color)=>rugPolys.push({pts,color});drawRoom(1000);} finally {poly=savedRugPoly;}
+      const connectedRug=quad(loungeArea.x+.25,loungeArea.y+.25,loungeArea.w-.5,loungeArea.h-.5);
+      if(!rugPolys.some(p=>p.color===C.wallSide&&JSON.stringify(p.pts)===JSON.stringify(connectedRug)))throw new Error('TV and conversation areas must share one continuous rug');
+      const loungeTables=objects.filter(o=>o.kind==='coffeeTable'&&inArea(o,'LOUNGE'));
+      if(loungeTables.length!==2||!loungeTables.some(o=>o.x===19&&o.y===12&&o.w===2&&o.d===1))throw new Error('Conversation area needs a small central coffee table');
       const added=objects.filter(o=>['readingDesk','roundTable','diningTable','locker','tvConsole','speaker','kitchenCounter','fridge'].includes(o.kind));
       for(const item of added)if(objects.some(o=>o!==item&&o.x<item.x+item.w&&o.x+o.w>item.x&&o.y<item.y+item.d&&o.y+o.d>item.y))throw new Error('New large office furniture overlaps: '+item.kind);
       for(const p of [[8,4],[8,5],[8,9],[8,10],[4,19],[5,19],[25,8],[25,9],[25,12],[25,13],[26,17],[27,17],[29,17],[30,17],[12,7],[13,7],[17,7],[18,7],[22,7],[23,7],[11,19]])if(blocked.has(key(...p))||!route(ENTRY,p).length)throw new Error('New room doorway must be reachable: '+p);
@@ -243,7 +263,7 @@ vm.runInContext(`
       if(objects.filter(o=>o.kind==='rack').length!==4)throw new Error('Large server room needs four racks');
       const bunks=objects.filter(o=>o.kind==='daybed').sort((a,b)=>a.x-b.x),bedroom=areaByName('QUIET ROOM');
       if(bunks.length!==2||bunks[0].x!==bedroom.x||bunks[1].x+2!==bedroom.x+bedroom.w||bunks.some(o=>o.y+1!==bedroom.y+bedroom.h))throw new Error('Bunks must sit in left and right bedroom corners');
-      if(objects.filter(o=>o.kind==='sofa'&&inArea(o,'LOUNGE')).length!==2)throw new Error('Lounge needs two sofas');
+      if(objects.filter(o=>o.kind==='sofa'&&inArea(o,'LOUNGE')).length!==3)throw new Error('Lounge needs TV sofa plus conversation pair');
       for(const sofa of objects.filter(o=>o.kind==='sofa'))if(objects.some(o=>o!==sofa&&o.x<sofa.x+sofa.w&&o.x+o.w>sofa.x&&o.y<sofa.y+sofa.d&&o.y+o.d>sofa.y))throw new Error('Extra sofa must not overlap furniture');
       const oldServerScreen=[wallPt('r',26.3,18),wallPt('r',30.7,18),wallPt('r',30.7,52),wallPt('r',26.3,52)];
       let drawsOldScreen=false;const savedScreenPoly=poly;
@@ -262,6 +282,21 @@ vm.runInContext(`
       if(lockerArea.x!==bedroom.x+bedroom.w+1||lockerArea.y!==bedroom.y)throw new Error('Lockers must be beside bedroom');
       const tv=objects.find(o=>o.kind==='tvConsole'),sofa=objects.find(o=>o.kind==='sofa');
       if(tv.y<=sofa.y)throw new Error('Lounge sofa must face television');
+      if(LOUNGE_SPOTS.length!==2)throw new Error('Lounge needs two simple activity groups');
+      for(let y=10;y<17;y++)if(blocked.has(key(17,y))||!route(ENTRY,[17,y]).length)throw new Error('Lounge aisle must stay clear and reachable');
+      const tvSpot=LOUNGE_SPOTS.find(s=>s.name==='TV'),chatSpot=LOUNGE_SPOTS.find(s=>s.name==='CHAT');
+      const inSpot=(o,s)=>o.x>=s.x&&o.y>=s.y&&o.x+o.w<=s.x+s.w&&o.y+o.d<=s.y+s.d;
+      const chatSofas=objects.filter(o=>o.kind==='sofa'&&inSpot(o,chatSpot)).sort((a,b)=>a.y-b.y);
+      if(!inSpot(tv,tvSpot)||!inSpot(sofa,tvSpot)||chatSofas.length!==2||chatSofas[0].reverse||!chatSofas[1].reverse||chatSofas[1].y-chatSofas[0].y<4)throw new Error('Conversation sofas must face each other with open space');
+      for(const couch of chatSofas) {
+        const pieces=[],originalBox=box;
+        try {box=(...args)=>pieces.push(args);drawObject(couch,1000);} finally {box=originalBox;}
+        const back=pieces.findIndex(args=>args[4]===16),pillows=pieces.map((args,i)=>args[5]==='#fff'?i:-1).filter(i=>i>=0);
+        if(pillows.length!==2||pillows.some(i=>couch.reverse?i>back:i<back))throw new Error('Sofa cushions must respect front/back occlusion');
+        if(couch.reverse&&pieces[0][1]!==couch.y)throw new Error('Reversed seat must rotate with backrest');
+      }
+      if(chatSofas.some(o=>o.x!==18)||chatSofas[1].y!==15)throw new Error('Both conversation sofas must move closer to TV seating');
+      for(const p of [[20,11],[21,14]])if(!zones.idle.some(q=>key(...q)===key(...p))||!roamSpots.some(q=>key(...q)===key(...p)))throw new Error('AI must be able to rest near conversation sofas');
     }
     for(const target of [...Object.values(zones).flat(),...roamSpots,...napSpots]) {
       const path=route(ENTRY,target);
