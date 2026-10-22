@@ -65,7 +65,7 @@ vm.runInContext(`
         const expected=[wallPt('r',start+.15,24),wallPt('r',start+3-.15,24),wallPt('r',start+3-.15,57),wallPt('r',start+.15,57)];
         if(!wallPolys.some(p=>p.color===C.sky&&JSON.stringify(p.pts)===JSON.stringify(expected)))throw new Error('Workspace window missing');
       }
-      if(wallPolys.some(p=>p.color===C.sky&&p.pts.some(pt=>pt[0]>wallPt('r',22,0)[0])))throw new Error('Server wall must not contain windows');
+      if(wallPolys.some(p=>p.color===C.sky&&p.pts.some(pt=>pt[0]>wallPt('r',22,0)[0])&&p.pts.every(pt=>pt[1]<OY+(pt[0]-OX)*.5+12)))throw new Error('Server wall must not contain windows');
       const desks=objects.filter(o=>o.kind==='desk'),work=AREAS.find(a=>a.title==='WORKSPACE');
       for(const o of desks)if(o.x<work.x||o.y<work.y||o.x+o.w>work.x+work.w||o.y+o.d>work.y+work.h)throw new Error('Medium desks must share one workspace');
       if(Math.max(...desks.map(o=>o.x))-Math.min(...desks.map(o=>o.x))>6||Math.max(...desks.map(o=>o.y))-Math.min(...desks.map(o=>o.y))>3)throw new Error('Medium desks must stay clustered');
@@ -134,7 +134,20 @@ vm.runInContext(`
       if(!path.length || blocked.has(key(...target)))throw new Error('Unreachable layout target: '+layout+' '+target);
       if(path.some(p=>blocked.has(key(...p)) || p[0]<=0 || p[0]>=COLS-1 || p[1]<=0 || p[1]>=ROWS))throw new Error('Invalid layout path');
     }
-    for(const theme of Object.keys(BUILDINGS)){setBuilding(theme);drawRoom(1000);for(const o of objects)drawObject(o,1000);}
+    for(const theme of Object.keys(BUILDINGS)){
+      setBuilding(theme);drawRoom(1000);for(const o of objects)drawObject(o,1000);
+      const exterior=[],originalPoly=poly;
+      try {poly=(pts,color)=>exterior.push({pts,color});drawBuildingExterior();} finally {poly=originalPoly;}
+      if(!exterior.some(p=>p.color===BUILDINGS[theme].facade[0])||!exterior.some(p=>p.color===BUILDINGS[theme].trim))throw new Error('Exterior must follow selected theme');
+      for(const {pts} of exterior)for(const [x,y] of pts)if(x<VIEW.x||x>VIEW.x+VIEW.w||y<VIEW.y)throw new Error('Building sides outside view: '+layout+' '+theme);
+      const minEdgeY=Math.min(iso(1,ROWS-1)[1],iso(COLS-1,1)[1]);
+      const depth=EXTERIOR_HEIGHT;
+      const highestBase=minEdgeY+depth;
+      for(const face of exterior.slice(0,2))if(Math.abs(face.pts[2][1]-face.pts[1][1]-depth)>1e-9)throw new Error('All building faces must have equal height');
+      if(iso(1,ROWS-1)[0]!==VIEW.x||iso(COLS-1,1)[0]!==VIEW.x+VIEW.w)throw new Error('Building must meet both horizontal viewport edges');
+      // Ground/base must be below the crop across both faces, not only at the front corner.
+      if(highestBase<=VIEW.y+VIEW.h)throw new Error('Building base must remain hidden below viewport');
+    }
   }
   setLayout('large');setBuilding('modern');
   openSettings();document.getElementById('layout-home').onchange();cancelSettings();

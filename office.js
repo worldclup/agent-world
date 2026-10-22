@@ -3,7 +3,7 @@
 // Logic runs on a plain grid (route / zones / blocked); only drawing is projected to isometric.
 const cv = document.getElementById('c'), ctx = cv.getContext('2d');
 let COLS = 32, ROWS = 22;
-const TW = 24, TH = 12, WALL = 72, SCALE = 2, ENTRY=[15,21];
+const TW = 24, TH = 12, WALL = 72, SCALE = 2, ENTRY=[15,21], EXTERIOR_HEIGHT=300;
 const OX = 274, OY = WALL + 100;
 const W = 668, H = OY + 436;
 function lightingAt(date) {
@@ -21,7 +21,7 @@ function updateLighting() {
   C.sky = mix('#1c315c','#9fd0f5'); C.sky2 = mix('#344b80','#c4e3fa');
 }
 // Visible crop of the world: zooms the view onto the office floor.
-const VIEW = { x: 60, y: 110, w: 550, h: 370 };
+const VIEW = { x: 34, y: 84, w: 600, h: 420 };
 cv.width = VIEW.w * SCALE; cv.height = VIEW.h * SCALE;
 const blocked = new Set(), objects = [], agents = new Map();
 const key = (x, y) => `${x},${y}`;
@@ -203,7 +203,6 @@ function setLayout(name) {
     ENTRY.splice(0,2,15,21);objects.push(...largePlan.objects.map(o=>({...o})));AREAS.push(...largePlan.areas);
     largePlan.blocked.forEach(k=>blocked.add(k));Object.assign(zones,JSON.parse(JSON.stringify(largePlan.zones)));
     barSeats.push(...largePlan.bar);napSpots.push(...largePlan.nap);roamSpots.push(...largePlan.roam);
-    Object.assign(VIEW,{x:60,y:110,w:550,h:370});
   } else {
     const home=name==='home';
     AREAS.push(...(home?[
@@ -261,9 +260,10 @@ function setLayout(name) {
     for(let x=0;x<COLS;x++){wall(x,0);if(x!==ENTRY[0]&&x!==ENTRY[0]+1)wall(x,ROWS-1);}
     for(let y=0;y<ROWS;y++){wall(0,y);wall(COLS-1,y);}
     roamSpots.push(...zones.idle,...barSeats);
-    Object.assign(VIEW,{x:OX-(ROWS-2)*12-18,y:OY-WALL-16,w:(COLS+ROWS-4)*12+36,h:(COLS+ROWS-2)*6+WALL+36});
   }
   zones.talk=zones.think;zones.agent=zones.think;
+  // Keep the facade running below the crop, like the original large office.
+  Object.assign(VIEW,{x:OX-(ROWS-2)*12,y:OY-WALL-16,w:(COLS+ROWS-4)*12,h:(COLS+ROWS-2)*6+WALL+36});
   cv.width=VIEW.w*SCALE;cv.height=VIEW.h*SCALE;
   for(const a of agents.values())Object.assign(a,{x:ENTRY[0],y:ENTRY[1],path:[],target:null,roamTarget:null,nextRoam:0,sleeping:false,sleepSpot:null,sx:undefined,sy:undefined});
   for(const key of Object.keys(OFFICE_LAYOUTS))document.getElementById('layout-'+key).checked=key===name;
@@ -475,43 +475,52 @@ function drawBangkok(t) {
 
 function drawBuildingExterior() {
   const style=BUILDINGS[buildingTheme];
-  const left = [iso(1,21),iso(31,21)], right = [iso(31,1),iso(31,21)];
-  const depth = H - Math.min(...left.concat(right).map(p => p[1])) + 30;
+  const maxX=COLS-1,maxY=ROWS-1;
+  // Equal-height facades for every layout, long enough to hide the ground below the crop.
+  const depth=EXTERIOR_HEIGHT;
+  const left = [iso(1,maxY),iso(maxX,maxY)], right = [iso(maxX,1),iso(maxX,maxY)];
   const face = (edge, top, bottom, color) => poly([up(edge[0],-top),up(edge[1],-top),up(edge[1],-bottom),up(edge[0],-bottom)],color);
   face(left,0,depth,style.facade[0]); face(right,0,depth,style.facade[1]);
-  // Continue the facade beyond the canvas so the tower has no visible base.
-  for(let floor=0;14+floor*62<depth;floor++) {
-    const z=14+floor*62;
+  // Two enclosed rental floors below the existing open office make three storeys.
+  for(let floor=0;floor<2;floor++) {
+    const z=10+floor*52;
     face(left,z-5,z-2,style.trim);face(right,z-5,z-2,style.facade[0]);
-    for(let col=0;col<14;col++) {
-      const a=2+col*2;
-      const edge=[iso(a,21),iso(a+1.35,21)];
-      const lit=lighting.daylight<.6&&(col*7+floor*3)%5<2;
-      face(edge,z,z+30,'#243d5d');
-      face([iso(a+.12,21),iso(a+1.22,21)],z+3,z+27,lit?'#edc587':lighting.daylight<.6?'#1c2f4c':'#9cc1d6');
-    }
-    for(let col=0;col<9;col++) {
-      const a=2+col*2;
-      const lit=lighting.daylight<.6&&(col*3+floor)%5<2;
-      face([iso(31,a),iso(31,a+1.35)],z,z+30,'#1b304b');
-      face([iso(31,a+.12),iso(31,a+1.22)],z+3,z+27,lit?'#d9b778':lighting.daylight<.6?'#172a44':'#769dbb');
+    for(const side of ['front','side']) {
+      const end=side==='front'?maxX:maxY;
+      const point=a=>side==='front'?iso(a,maxY):iso(maxX,a);
+      for(let a=2;a+1.5<end-1;a+=3) {
+        if(side==='front'&&floor===1&&a+1.5>ENTRY[0]-.4&&a<ENTRY[0]+2.4)continue;
+        const lit=lighting.daylight<.6&&(a+floor)%3===0;
+        face([point(a),point(a+1.5)],z,z+28,C.navy);
+        face([point(a+.12),point(a+1.38)],z+2,z+26,lit?'#edc587':C.sky);
+        face([point(a+.7),point(a+.8)],z+2,z+26,style.trim);
+        face([point(a-.1),point(a+1.6)],z+28,z+30,style.trim);
+        if(buildingTheme==='loft')face([point(a-.2),point(a+1.7)],z-2,z,C.woodDark);
+        if(buildingTheme==='garden'&&floor===0)face([point(a),point(a+1.5)],z+25,z+28,C.leaf);
+      }
     }
   }
-  // Continuous corner columns extend below the viewport.
-  face([iso(1,21),iso(1.45,21)],0,depth,style.trim);
-  face([iso(30.55,21),iso(31,21)],0,depth,style.trim);
-  face([iso(31,20.55),iso(31,21)],0,depth,style.facade[1]);
+  face(left,depth-5,depth,style.trim);face(right,depth-5,depth,style.trim);
+  face([iso(1,maxY),iso(1.35,maxY)],0,depth,style.trim);
+  face([iso(maxX-.35,maxY),iso(maxX,maxY)],0,depth,style.trim);
+  face([iso(maxX,maxY-.35),iso(maxX,maxY)],0,depth,style.trim);
+  const door=ENTRY[0]-.15;
+  face([iso(door,maxY),iso(door+2.3,maxY)],64,depth,C.navy);
+  face([iso(door+.15,maxY),iso(door+2.15,maxY)],66,depth-2,C.sky2);
+  face([iso(door+1.08,maxY),iso(door+1.22,maxY)],66,depth,C.navy);
+  poly(quad(door-.25,maxY-.05,2.8,.8).map(p=>up(p,-61)),style.trim);
+  face([iso(door-.25,maxY+.75),iso(door+2.55,maxY+.75)],61,64,C.navy);
+  poly(quad(door-.25,maxY,2.8,.7).map(p=>up(p,-depth)),style.trim);
   if(buildingTheme==='cyber') {
-    face([iso(30.9,21),iso(31,21)],0,depth,'#ed83db');
-    face([iso(31,20.85),iso(31,21)],0,depth,'#5de6e6');
+    face([iso(maxX-.1,maxY),iso(maxX,maxY)],0,depth,'#ed83db');
+    face([iso(maxX,maxY-.15),iso(maxX,maxY)],0,depth,'#5de6e6');
   }
 }
 
 function drawCompactRoom(t) {
   drawBangkok(t);
   const right=COLS-1,front=ROWS-1;
-  const leftEdge=[iso(1,front),iso(right,front)],rightEdge=[iso(right,1),iso(right,front)];
-  for(const [edge,color] of [[leftEdge,C.wallSide],[rightEdge,C.edge]])poly([...edge,up(edge[1],-36),up(edge[0],-36)],color);
+  drawBuildingExterior();
   for(let y=1;y<front;y++)for(let x=1;x<right;x++){
     const area=AREAS.find(a=>x>=a.x&&x<a.x+a.w&&y>=a.y&&y<a.y+a.h);
     poly(quad(x,y,1,1),floorColor(area?.floor,x,y));
