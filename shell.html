@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="th">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agent HQ · Room foundation</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#080f20;color:#e5d6b4;font:16px system-ui,sans-serif}main{max-width:1100px;margin:auto;padding:24px}header{display:flex;align-items:center;gap:12px;flex-wrap:wrap}h1{font-size:22px;margin-right:auto}button,a{border:1px solid #48627e;background:#18283e;color:#dbe8f4;padding:10px 16px;border-radius:0;font:inherit;cursor:pointer}button[aria-pressed=true]{border-color:#e5cf98;color:#e5cf98}p{color:#9eb1c5;line-height:1.7}.stage{position:relative;aspect-ratio:3/2;background:#0d1728;border:1px solid #2b405a;overflow:hidden}.stage img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}.stage img[hidden]{display:none}small{color:#9eb1c5}button:focus-visible,a:focus-visible{outline:2px solid white;outline-offset:3px}
+</style>
+<main>
+<header><h1>AGENT HQ · พื้นและกำแพง</h1><a href="/?scene=home">กลับฉาก AI</a></header>
+<p>เปรียบเทียบพื้น ห้องเปล่า และภาพรวมที่เพิ่มความสูงกำแพงพร้อมเฟอร์นิเจอร์ — เป็นภาพทดลอง ไม่ใช่ฉาก AI ที่เดินได้</p>
+<nav aria-label="ชั้นภาพ"><button id="floor" aria-pressed="true">1 · พื้น</button> <button id="room" aria-pressed="false">2 · ห้องเปล่าเดิม</button> <button id="furnished" aria-pressed="false">3 · กำแพงสูง + เฟอร์นิเจอร์</button></nav>
+<p id="caption" aria-live="polite">พื้นไม้แผ่นกว้าง · ลดลายรบกวนสายตา</p>
+<div class="stage"><img id="floor-layer" src="/assets/detailed/hq-floor-v1.png" alt="พื้นไม้ห้อง Agent HQ มุม isometric"><img id="room-layer" src="/assets/detailed/hq-shell-v1.png" alt="ห้อง Agent HQ เปล่า พื้นไม้และกำแพงเข้ม" hidden><img id="furnished-layer" src="/assets/detailed/hq-furnished-v2.png" alt="ภาพรวม Agent HQ กำแพงสูงพร้อมโต๊ะทำงานสามมุม โต๊ะประชุม และเซิร์ฟเวอร์" hidden></div>
+<p><small>ขั้นนี้ยังไม่จัดวางโต๊ะหรือทางเดินจริง รอตรวจรูปทรงห้องให้ลงตัวก่อน</small></p>
+</main>
+<script>
+for(const id of ['floor-layer','room-layer','furnished-layer'])document.getElementById(id).onerror=()=>{
+  document.getElementById('caption').textContent='โหลดภาพไม่สำเร็จ กรุณารีเฟรชหลังเซิร์ฟเวอร์พร้อม';
+};
+for(const id of ['floor','room','furnished'])document.getElementById(id).onclick=()=>{
+  for(const name of ['floor','room','furnished']) {
+    document.getElementById(name).setAttribute('aria-pressed',String(name===id));
+    document.getElementById(name+'-layer').hidden=id!==name;
+  }
+  document.getElementById('caption').textContent={floor:'พื้นไม้แผ่นกว้าง · ลดลายรบกวนสายตา',room:'กำแพงเดิม · ห้องเปล่า',furnished:'ทดลองกำแพงสูงขึ้นประมาณ 30% · จัดของแน่นขึ้น · ภาพรวมยังเป็นภาพแบน'}[id];
+};
+</script>
+</html>

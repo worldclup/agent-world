@@ -165,10 +165,13 @@ http.createServer((req, res) => {
     req.on('close', () => clients.delete(res));
   } else {
     const pathname = new URL(req.url, 'http://localhost').pathname;
-    const allowed = { '/': 'index.html', '/index.html': 'index.html', '/office.js': 'office.js', '/assets/roguelikeCity_magenta.png': 'assets/roguelikeCity_magenta.png' };
-    const file = allowed[pathname];
+    const allowed = { '/': 'index.html', '/index.html': 'index.html', '/office.js': 'office.js', '/assets/roguelikeCity_magenta.png': 'assets/roguelikeCity_magenta.png', '/assets/detailed/desk-workstation-v1.png': 'assets/detailed/desk-workstation-v1.png', '/assets/detailed/server-rack-v1.png': 'assets/detailed/server-rack-v1.png' };
+    const file = pathname === '/shell.html' ? 'shell.html' : pathname === '/character.html' ? 'character.html' : allowed[pathname];
     const iconFile = /^\/assets\/icons\/(coffee|book|edit|globe|message|terminal|users|play|info-box|sliders)\.svg$/.test(pathname) ? pathname.slice(1) : null;
-    const target = file || iconFile;
+    const detailedFile = /^\/assets\/detailed\/(sofa|coffee-bar|coffee-table|meeting-table|plant|armchair|office-chair|bar-stool|bunk-bed)-v1\.png$/.test(pathname) ? pathname.slice(1) : null;
+    const shellFile = /^\/assets\/detailed\/hq-(?:(floor|shell|walls|lounge|rest)-v1|furnished-v2|entry-v3)\.png$/.test(pathname) ? pathname.slice(1) : null;
+    const characterFile = /^\/assets\/detailed\/hq-character-(?:(standing|seated|walk)-v1|walk-v2)\.png$/.test(pathname) ? pathname.slice(1) : null;
+    const target = file || iconFile || detailedFile || shellFile || characterFile;
     if (!target) { res.writeHead(404); res.end('Not found'); return; }
     fs.readFile(path.join(__dirname, target), (err, data) => {
       if (err) { res.writeHead(500); res.end('Unable to load file'); return; }

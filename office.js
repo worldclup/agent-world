@@ -2,7 +2,9 @@
 // Dhiteta AI open-plan office, isometric (2.5D) pixel view.
 // Logic runs on a plain grid (route / zones / blocked); only drawing is projected to isometric.
 const cv = document.getElementById('c'), ctx = cv.getContext('2d');
-const COLS = 32, ROWS = 22, TW = 24, TH = 12, WALL = 72, SCALE = 2;
+const HOME = typeof location !== 'undefined' && !location.search.includes('scene=office');
+const COLS = HOME ? 18 : 32, ROWS = HOME ? 18 : 22, TW = 24, TH = 12, WALL = 72, SCALE = 2;
+const ENTRY = HOME ? [8,17] : [15,21];
 const OX = 274, OY = WALL + 100;
 const W = 668, H = OY + 436;
 function lightingAt(date) {
@@ -20,10 +22,42 @@ function updateLighting() {
   C.sky = mix('#1c315c','#9fd0f5'); C.sky2 = mix('#344b80','#c4e3fa');
 }
 // Visible crop of the world: zooms the view onto the office floor.
-const VIEW = { x: 60, y: 110, w: 550, h: 370 };
+const VIEW = HOME ? { x: 65, y: 60, w: 420, h: 335 } : { x: 60, y: 110, w: 550, h: 370 };
 cv.width = VIEW.w * SCALE; cv.height = VIEW.h * SCALE;
 const blocked = new Set(), objects = [], agents = new Map();
 const key = (x, y) => `${x},${y}`;
+const hqImage = new Image(); hqImage.src='/assets/detailed/hq-entry-v3.png';
+const HQ_ROOMS={work:{title:'ห้องทำงาน',image:hqImage},lounge:{title:'ห้องนั่งเล่น'},rest:{title:'ห้องพักผ่อน'}};
+for(const name of ['lounge','rest']){const image=new Image();image.src=`/assets/detailed/hq-${name}-v1.png`;HQ_ROOMS[name].image=image;}
+let selectedRoom='work';
+try{const saved=localStorage.getItem('office-hq-room');if(HQ_ROOMS[saved])selectedRoom=saved;}catch{}
+const roomImage=()=>HQ_ROOMS[selectedRoom].image;
+const hqCharacters=Object.fromEntries(['walk','seated'].map(pose=>{
+  const image=new Image();image.src=`/assets/detailed/hq-character-${pose}-${pose==='walk'?'v2':'v1'}.png`;return [pose,image];
+}));
+const hqReady = () => HOME && roomImage().complete && roomImage().naturalWidth>0;
+const hqPoint = (x,y) => {
+  const u=(x-1)/16,v=(y-1)/16;
+  return [768+698*(u-v),290+310*(u+v)+90*u*v];
+};
+const hqScreen = ([x,y]) => [65+x*420/1536,95+y*420/1536];
+function insidePolygon([x,y],points) {
+  let inside=false;
+  for(let i=0,j=points.length-1;i<points.length;j=i++) {
+    const [a,b]=points[i],[c,d]=points[j];
+    if((b>y)!==(d>y) && x<(c-a)*(y-b)/(d-b)+a)inside=!inside;
+  }
+  return inside;
+}
+// Source-space silhouettes preserve the approved art without rewriting its pixels.
+// shortcut: hand-traced masks include narrow edge fringes; replace with exported sprite alpha for final art.
+const hqLayers = [
+  {name:'shelf',ground:[[95,575],[115,610],[365,475],[365,420]],mask:[[110,335],[365,212],[372,446],[115,600]]},
+  {name:'rack',ground:[[780,340],[895,410],[965,370],[850,300]],mask:[[784,151],[854,126],[955,167],[957,369],[893,412],[781,341]]},
+  {name:'dev',ground:[[407,406],[578,499],[751,407],[750,322]],mask:[[402,333],[444,306],[445,279],[520,250],[566,256],[612,239],[679,225],[685,290],[751,292],[751,408],[632,477],[573,496],[406,405]]},
+  {name:'meeting',ground:[[880,493],[1015,578],[1185,484],[1185,401]],mask:[[891,337],[932,321],[950,345],[965,311],[1003,301],[1025,348],[1184,393],[1185,492],[1132,521],[1101,573],[1075,567],[1009,574],[901,510],[871,458],[866,409],[887,398]]},
+  {name:'security',ground:[[858,846],[1000,925],[1295,755],[1296,650],[1154,577]],mask:[[856,690],[946,643],[947,605],[1005,574],[1054,580],[1105,555],[1165,523],[1203,535],[1205,586],[1248,595],[1295,614],[1296,754],[1001,925],[859,846]]},
+];
 
 const C = {
   navy: '#0f2a52', blue: '#1f5fbf', blue2: '#2f6fd6', blue3: '#174ea3', white: '#ffffff', wall: '#f4f7fb', wallSide: '#e3eaf4',
@@ -33,8 +67,8 @@ const C = {
 
 // ---------- grid: outer boundary only, open plan inside ----------
 function wall(x, y) { blocked.add(key(x, y)); }
-for (let x = 0; x < COLS; x++) { wall(x, 0); if (x !== 15 && x !== 16) wall(x, 21); }
-for (let y = 0; y < ROWS; y++) { wall(0, y); wall(31, y); }
+for (let x = 0; x < COLS; x++) { wall(x, 0); if (x !== ENTRY[0] && x !== ENTRY[0]+1) wall(x, ROWS-1); }
+for (let y = 0; y < ROWS; y++) { wall(0, y); wall(COLS-1, y); }
 
 // object(x, y, w, d, kind): blocks its footprint; deco() is walkable (chairs)
 function object(x, y, w, d, kind, opt = {}) {
@@ -50,12 +84,13 @@ const AREAS = [
   { x: 1, y: 12, w: 10, h: 5, floor: 'wood', title: 'LOUNGE' },
   { x: 20, y: 13, w: 11, h: 8, floor: 'dark', title: 'SERVER' },
 ];
+const barSeats = HOME ? [] : [[8,13],[9,13],[10,13]];
+const napSpots = HOME ? [] : [[3,19],[7,19],[4,19],[8,19]];
 
 // lounge
+if (!HOME) {
 object(2, 12, 4, 1, 'sofa'); object(3, 14, 2, 1, 'coffeeTable'); object(7, 14, 1, 1, 'armchair'); object(8, 12, 3, 1, 'coffeeBar');
-const barSeats = [[8,13],[9,13],[10,13]];
 barSeats.forEach(([x,y]) => deco(x, y, 'barStool'));
-const napSpots = [[3,19],[7,19],[4,19],[8,19]];
 [[3,19],[7,19]].forEach(([x,y]) => deco(x,y,'daybed'));
 // Quiet room below the lounge; leave a two-tile doorway at x=7..8.
 object(1,17,6,1,'restWall');
@@ -82,13 +117,114 @@ object(29,18,1,1,'serverStatus');
 object(30, 20, 1, 1, 'plant');
 // entry
 object(13, 20, 1, 1, 'plant'); object(18, 20, 1, 1, 'plant');
+} else {
+  AREAS.length=0;
+  object(2,6,4,2,'desk',{role:'DEV AGENT',accent:'#71d8ed'}); deco(3,8,'chair');
+  object(11,12,4,2,'desk',{role:'SECURITY AGENT',accent:'#b599ee'}); deco(12,14,'chair');
+  object(10,5,4,3,'table');
+  [[9,6],[11,8],[14,6],[12,4]].forEach(([x,y])=>deco(x,y,'chair'));
+  object(3,2,1,1,'rack'); object(5,2,1,1,'rack');
+  [[2,5],[7,2],[2,11],[15,11]].forEach(([x,y])=>object(x,y,1,1,'plant'));
+}
 
-const zones = {
+const zones = HOME ? {
+  read:[[4,8]],write:[[4,8]],web:[[14,13],[4,8]],
+  bash:[[5,4],[6,4]],think:[[11,5],[12,7]],idle:[[12,13],[12,14],[14,13]],
+} : {
   read: [[14,3],[17,3],[20,3],[23,3]], write: [[14,7],[17,7],[20,7],[23,7]],
   web: [[27,3],[29,3]], bash: [[22,20],[24,20],[25,15],[25,17]],
   think: [[5,2],[6,5],[3,3],[8,4]], idle: [[2,14],[5,14],[3,16],[6,16]],
 };
+if(HOME) {
+  blocked.clear();
+  for(let y=0;y<ROWS;y++)for(let x=0;x<COLS;x++) {
+    if(x===0 || x===COLS-1 || y===0 || (y===ROWS-1 && x!==ENTRY[0] && x!==ENTRY[0]+1) || hqLayers.some(layer=>insidePolygon(hqPoint(x+.5,y+.5),layer.ground)))wall(x,y);
+  }
+  HQ_ROOMS.work.blocked=blocked;
+  for(const name of ['lounge','rest']) {
+    const obstacles=new Set();
+    const footprints=name==='lounge' ? [
+      [[290,475],[400,525],[720,370],[720,310]],
+      [[540,500],[670,570],[815,490],[815,440]],
+      [[1020,460],[1280,600],[1320,555],[1320,430]],
+      [[815,340],[1000,430],[1040,400],[1040,300]],
+    ] : [
+      [[260,490],[350,550],[630,420],[630,350]],
+      [[920,440],[1210,600],[1260,570],[1260,440]],
+      [[680,360],[870,460],[920,420],[920,350]],
+    ];
+    for(let y=0;y<ROWS;y++)for(let x=0;x<COLS;x++)if(x===0 || x===COLS-1 || y===0 || (y===ROWS-1 && x!==ENTRY[0] && x!==ENTRY[0]+1) || footprints.some(shape=>insidePolygon(hqPoint(x+.5,y+.5),shape)))obstacles.add(key(x,y));
+    HQ_ROOMS[name].blocked=obstacles;
+  }
+}
 zones.talk = zones.think; zones.agent = zones.think;
+const HQ_HOTSPOTS = [
+  {id:'dev',point:[560,330],title:'Dev · อ่านและแก้ไขโค้ด',description:'มุมตรวจสอบไฟล์ ค้นหาข้อมูลในโปรเจกต์ และแก้ไขโค้ด',targets:zones.read,states:['read','write']},
+  {id:'entry',point:[450,720],title:'Entrance · ทางเข้าห้องทำงาน',description:'พื้นที่ทางเข้าที่เปิดโล่งแทนโต๊ะเดิม เชื่อมจากขอบด้านหน้าซ้ายเข้าสู่พื้นที่กลางห้อง ตอนนี้เป็นทางเดิน ยังไม่มีการย้ายไปห้องอื่น',targets:[[8,16]],states:[]},
+  {id:'security',point:[1070,640],title:'Security · ตรวจสอบระบบ',description:'มุมค้นข้อมูลและตรวจสอบระบบ ชื่อโซนเป็นแนวทางการใช้งาน ไม่ใช่การยืนยันว่า AI กำลังตรวจความปลอดภัย',targets:zones.web,states:['web']},
+  {id:'meeting',point:[1050,425],title:'Meeting · คิดและวางแผน',description:'คิด วางแผน ตอบคำถาม และประสานงานกับ Agent อื่น',targets:zones.think,states:['think','talk','agent']},
+  {id:'server',point:[866,220],title:'Server · รันคำสั่ง',description:'โซนสำหรับกิจกรรมรันคำสั่งและเครื่องมือจาก session ที่เชื่อมต่อ การคลิกจุดนี้เปิดข้อมูลเท่านั้น ไม่ได้รันคำสั่ง',targets:zones.bash,states:['bash']},
+  {id:'sofa',room:'lounge',point:[510,350],title:'โซฟา · พักและนั่งเล่น',description:'มุมพักระหว่างงาน AI ที่ว่างจะย้ายมาห้องนั่งเล่นและเดินเล่นในพื้นที่โล่ง ยังไม่มีท่านั่งบนโซฟา',targets:[[6,15]],states:['idle']},
+  {id:'coffee',room:'lounge',point:[1170,375],title:'บาร์กาแฟ · มุมผ่อนคลาย',description:'มุมกาแฟและพูดคุยในห้องนั่งเล่น การคลิกเปิดข้อมูลเท่านั้น ไม่สั่งให้ AI ทำงานหรือใช้ token เพิ่ม',targets:[[12,15]],states:['idle']},
+  {id:'bed-left',room:'rest',point:[455,320],title:'เตียงชุดซ้าย · 2 ที่พัก',description:'เตียงสองชั้นหนึ่งชุด รวม 2 ที่พัก AI ที่ว่างอย่างน้อย 3 นาทีในช่วงกลางคืนตามเวลาเครื่องจะมาพักในห้องนี้ ยังไม่ได้จองเตียงหรือแสดงท่านอนจริง',targets:[[6,15]],states:['idle']},
+  {id:'bed-right',room:'rest',point:[1095,355],title:'เตียงชุดขวา · 2 ที่พัก',description:'เตียงสองชั้นชุดที่สอง รวมทั้งห้องมี 4 ที่พัก เมื่อมีงานใหม่ AI จะกลับห้องทำงานโดยอัตโนมัติ ตัวเลขนี้คือจำนวนที่พัก ไม่ใช่จำนวนผู้กำลังนอน',targets:[[12,15]],states:['idle']},
+];
+const hotspotGroup=document.getElementById('zone-hotspots'),zoneDialog=document.getElementById('zone-details');
+function openZone(id) {
+  const zone=HQ_HOTSPOTS.find(zone=>zone.id===id);if(!HOME || !zone || (zone.room||'work')!==selectedRoom)return;
+  document.getElementById('zone-title').textContent=zone.title;
+  document.getElementById('zone-description').textContent=zone.description;
+  document.getElementById('zone-target').textContent=`${selectedRoom==='work'?'จุดทำงาน':'จุดเดินพัก'}บนกริด: ${zone.targets.map(p=>`(${p[0]}, ${p[1]})`).join(' · ')}`;
+  const count=[...agents.values()].filter(a=>(a.room||'work')===selectedRoom && zone.states.includes(a.state)).length;
+  document.getElementById('zone-activity').textContent=zone.states.length?`ตัวละครในห้องนี้ที่มีสถานะเกี่ยวข้อง: ${count} ตัว (ไม่ใช่จำนวนผู้ใช้เฟอร์นิเจอร์ อาจรวม Demo)`:'จุดข้อมูลทางเข้า · คลิกเพื่อดูรายละเอียดเท่านั้น';
+  zoneDialog.showModal();
+}
+HQ_HOTSPOTS.forEach(zone=>{document.getElementById(`zone-${zone.id}`).onclick=()=>openZone(zone.id);});
+document.getElementById('close-zone').onclick=()=>zoneDialog.close();
+function hotspotPosition(point,width,height) {
+  const scale=Math.min(width/VIEW.w,height/VIEW.h),[x,y]=hqScreen(point);
+  return [(width-VIEW.w*scale)/2+(x-VIEW.x)*scale,(height-VIEW.h*scale)/2+(y-VIEW.y)*scale];
+}
+let hotspotSize='';
+function positionHotspots() {
+  hotspotGroup.hidden=!hqReady();if(hotspotGroup.hidden)return;
+  const size=[selectedRoom,cv.clientWidth,cv.clientHeight,cv.offsetLeft,cv.offsetTop,cv.clientLeft,cv.clientTop].join(',');
+  if(size===hotspotSize)return;hotspotSize=size;
+  for(const zone of HQ_HOTSPOTS) {
+    const button=document.getElementById(`zone-${zone.id}`);
+    button.hidden=(zone.room||'work')!==selectedRoom;if(button.hidden)continue;
+    const [x,y]=hotspotPosition(zone.point,cv.clientWidth,cv.clientHeight);
+    button.style.left=`${cv.offsetLeft+cv.clientLeft+x}px`;
+    button.style.top=`${cv.offsetTop+cv.clientTop+y}px`;
+  }
+}
+const roomNav=document.getElementById('hq-rooms');roomNav.hidden=!HOME;
+function chooseRoom(name) {
+  if(!HOME || !HQ_ROOMS[name])return;
+  selectedRoom=name;pointer=null;tooltip.hidden=true;zoneDialog.close();hotspotSize='';
+  try{localStorage.setItem('office-hq-room',name);}catch{}
+}
+for(const name of Object.keys(HQ_ROOMS))document.getElementById('room-'+name).onclick=()=>chooseRoom(name);
+function agentRoom(a,now=Date.now(),night=lighting.label==='กลางคืน') {
+  if(a.state!=='idle')return 'work';
+  return night && now-(a.idleSince??now)>=180000?'rest':'lounge';
+}
+function updateAgentRoom(a,now=Date.now()) {
+  if(!HOME)return;
+  const next=agentRoom(a,now);
+  if(a.room!==next)Object.assign(a,{room:next,x:ENTRY[0],y:ENTRY[1],path:[],target:null,roamTarget:null,nextRoam:0,sleeping:false,sleepSpot:null,sx:undefined,sy:undefined});
+}
+function updateRoomControls() {
+  if(!HOME)return;
+  for(const [name,room] of Object.entries(HQ_ROOMS)){
+    const button=document.getElementById('room-'+name);
+    const text=`${room.title} · ${[...agents.values()].filter(a=>(a.room||'work')===name).length}`;
+    if(button.textContent!==text)button.textContent=text;
+    button.setAttribute('aria-pressed',String(selectedRoom===name));
+  }
+  const caption=`${HQ_ROOMS[selectedRoom].title} · AI รับงานใหม่จะกลับห้องทำงาน · พักกลางคืนเมื่อว่าง 3 นาที`;
+  if(document.getElementById('room-caption').textContent!==caption)document.getElementById('room-caption').textContent=caption;
+}
 const labels = { read:'อ่าน / ค้นหา', write:'แก้ไขไฟล์', web:'ค้นเว็บ', bash:'รันคำสั่ง', think:'กำลังคิด', talk:'กำลังตอบ', agent:'ประสานงาน', idle:'พักผ่อน' };
 const icons = { read:'book', write:'edit', web:'globe', bash:'terminal', think:'message', talk:'message', agent:'users', idle:'coffee' };
 const iconImages = Object.fromEntries([...new Set(Object.values(icons))].map(name => {
@@ -97,7 +233,8 @@ const iconImages = Object.fromEntries([...new Set(Object.values(icons))].map(nam
 const colors = { read:'#2586b6', write:'#7958d1', web:'#ca8a18', bash:'#21865b', think:'#bd5692', talk:'#bd5692', agent:'#148a98', idle:'#b87436' };
 const runningCommands = () => [...agents.values()].filter(a => a.state === 'bash' && a.sessionSid && !a.sessionSid.startsWith('demo-') && Date.now()-a.last <= 15*60e3).length;
 
-function route(from, to) {
+function route(from, to, room='work') {
+  const obstacles=HOME && HQ_ROOMS[room]?.blocked ? HQ_ROOMS[room].blocked : blocked;
   const queue = [from], prev = new Map([[key(...from), null]]);
   for (let i = 0; i < queue.length; i++) {
     const p = queue[i];
@@ -108,7 +245,7 @@ function route(from, to) {
     }
     for (const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
       const n = [p[0]+dx,p[1]+dy], k = key(...n);
-      if (n[0] > 0 && n[0] < 31 && n[1] > 0 && n[1] < 22 && !blocked.has(k) && !prev.has(k)) { prev.set(k,p); queue.push(n); }
+      if (n[0] > 0 && n[0] < COLS-1 && n[1] > 0 && n[1] <= ENTRY[1] && !obstacles.has(k) && !prev.has(k)) { prev.set(k,p); queue.push(n); }
     }
   }
   return [];
@@ -161,7 +298,7 @@ function apply(ev) {
   const kind = ev.kind || 'claude';
   let a = [...agents.values()].find(a => a.sessionSid === ev.sid && a.kind === kind);
   if (!a && !ev.sid.startsWith('demo-')) a = [...agents.values()].find(a => a.resident && a.kind === kind && !a.sessionSid);
-  if (!a) { const id = `${kind}:${ev.sid}`; a = { sid:id, x:15, y:21, dir:3, path:[], hue:agents.size % 5 }; agents.set(id,a); }
+  if (!a) { const id = `${kind}:${ev.sid}`; a = { sid:id, x:ENTRY[0], y:ENTRY[1], dir:3, path:[], hue:agents.size % 5 }; agents.set(id,a); }
   a.sessionSid = ev.sid;
   const wasIdle = a.state === 'idle';
   Object.assign(a, { kind:ev.kind || 'claude', project:String(ev.project || 'Agent'), state:ev.state, text:String(ev.text || ''), last:Date.now() });
@@ -189,7 +326,7 @@ function expireAgents(now) {
   }
 }
 
-const roamSpots = [[2,14],[5,14],[3,16],[6,16],[8,16],[9,15],[2,16], ...barSeats];
+const roamSpots = HOME ? [[12,13],[12,14],[14,13],[6,4],[10,16]] : [[2,14],[5,14],[3,16],[6,16],[8,16],[9,15],[2,16], ...barSeats];
 function sleepTarget(a, now, night) {
   if (!night || a.state !== 'idle' || now - (a.idleSince ?? now) < 3*60e3) {
     a.sleepSpot = null; a.sleeping = false; return null;
@@ -199,6 +336,15 @@ function sleepTarget(a, now, night) {
   return a.sleepSpot;
 }
 function chooseTarget(a, assigned, now) {
+  if(HOME && a.room && a.room!=='work') {
+    const spots=[[6,15],[9,15],[12,15],[8,16]];
+    if(!a.roamTarget || (!a.path.length && now>=a.nextRoam)) {
+      const candidates=spots.filter(p=>!HQ_ROOMS[a.room].blocked.has(key(...p)) && ![...agents.values()].some(other=>other!==a && other.room===a.room && other.roamTarget && key(...other.roamTarget)===key(...p)));
+      a.roamTarget=candidates[Math.floor(Math.random()*candidates.length)]||[8,16];a.nextRoam=Infinity;
+    }
+    if(!a.path.length && a.x===a.roamTarget[0] && a.y===a.roamTarget[1] && a.nextRoam===Infinity)a.nextRoam=now+(a.room==='rest'?15000:4000);
+    return a.roamTarget;
+  }
   const nap = sleepTarget(a,Date.now(),lighting.label === 'กลางคืน');
   if (nap) return nap;
   if (a.state !== 'idle') return assigned;
@@ -213,7 +359,7 @@ function chooseTarget(a, assigned, now) {
 }
 
 // ---------- isometric pixel helpers ----------
-const iso = (gx, gy) => [OX + (gx - gy) * TW / 2, OY + (gx + gy) * TH / 2];
+const iso = (gx, gy) => HOME ? hqScreen(hqPoint(gx,gy)) : [OX + (gx - gy) * TW / 2, OY + (gx + gy) * TH / 2];
 const up = (p, h) => [p[0], p[1] - h];
 const lerp = (a, b, u) => [a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u];
 function rect(x, y, w, h, c) { ctx.fillStyle = c; ctx.fillRect(Math.round(x), Math.round(y), w, h); }
@@ -292,16 +438,24 @@ backgroundSelect.onchange=()=>{
   backgroundTheme=backgroundSelect.value;
 };
 const settingsDialog=document.getElementById('scene-settings');
+let detailedAssets = true;
+try { detailedAssets=localStorage.getItem('office-detailed-assets') !== 'false'; } catch {}
+const detailedToggle=document.getElementById('detailed-assets');
+detailedToggle.checked=detailedAssets;
+detailedToggle.onchange=()=>{detailedAssets=detailedToggle.checked;};
 let settingsSnapshot=null;
 function openSettings() {
-  settingsSnapshot={building:buildingTheme,background:backgroundTheme};
+  document.getElementById('scene-home').setAttribute('aria-current',HOME?'page':'false');
+  document.getElementById('scene-office').setAttribute('aria-current',HOME?'false':'page');
+  settingsSnapshot={building:buildingTheme,background:backgroundTheme,detailed:detailedAssets};
+  detailedToggle.checked=detailedAssets;
   backgroundSelect.value=backgroundTheme;
   backgroundSelect.refreshAppearance?.();
   Object.keys(BUILDINGS).forEach(name=>{document.getElementById(`building-${name}`).checked=name===buildingTheme;});
   settingsDialog.showModal();
 }
 function cancelSettings() {
-  if(settingsSnapshot){setBuilding(settingsSnapshot.building);backgroundTheme=settingsSnapshot.background;backgroundSelect.value=backgroundTheme;backgroundSelect.refreshAppearance?.();settingsSnapshot=null;}
+  if(settingsSnapshot){setBuilding(settingsSnapshot.building);backgroundTheme=settingsSnapshot.background;detailedAssets=settingsSnapshot.detailed;detailedToggle.checked=detailedAssets;backgroundSelect.value=backgroundTheme;backgroundSelect.refreshAppearance?.();settingsSnapshot=null;}
   settingsDialog.close();
 }
 const MATCHING_BACKGROUNDS = { modern:'rain', cyber:'neon', loft:'sunset', garden:'rain' };
@@ -319,7 +473,7 @@ document.getElementById('close-settings').onclick=cancelSettings;
 settingsDialog.oncancel=e=>{e.preventDefault();cancelSettings();};
 settingsDialog.onclose=()=>{if(settingsSnapshot)cancelSettings();};
 document.getElementById('save-settings').onclick=()=>{
-  try { localStorage.setItem('office-background',backgroundTheme);localStorage.setItem('office-building',buildingTheme); } catch {}
+  try { localStorage.setItem('office-background',backgroundTheme);localStorage.setItem('office-building',buildingTheme);localStorage.setItem('office-detailed-assets',String(detailedAssets)); } catch {}
   settingsSnapshot=null;settingsDialog.close();
 };
 function drawBangkok(t) {
@@ -424,7 +578,59 @@ function drawBuildingExterior() {
   }
 }
 
+function drawHomeRoom(t) {
+  if(hqReady()) {
+    rect(0,0,W,H,'#080f20');ctx.drawImage(roomImage(),65,95,420,280);return;
+  }
+  if(selectedRoom!=='work') {
+    rect(0,0,W,H,'#080f20');ctx.fillStyle='#dce8f7';ctx.font='12px sans-serif';
+    ctx.fillText(roomImage().complete?'โหลดภาพห้องไม่สำเร็จ กรุณารีเฟรช':'กำลังโหลดภาพห้อง…',VIEW.x+35,VIEW.y+160);return;
+  }
+  rect(0,0,W,H,'#080f20');
+  ctx.strokeStyle='#17304d';ctx.lineWidth=.6;
+  for(let i=0;i<22;i++) {
+    const x=VIEW.x+8+i*19, y=VIEW.y+24+(i%4)*8;
+    ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x,y+35);ctx.lineTo(x+22,y+48);ctx.lineTo(x+22,y+90);ctx.stroke();
+    rect(x-1,y-1,2,2,i%3===0?'#42748e':'#1c3d5a');
+  }
+  ctx.textAlign='center';ctx.font='bold 19px "Press Start 2P", monospace';
+  ctx.fillStyle='#253e60';ctx.fillText('AGENT HQ',275,91);
+  ctx.fillStyle='#ead8aa';ctx.fillText('AGENT HQ',274,89);ctx.textAlign='left';
+  // The new room is a self-contained cutaway, not a tower facade.
+  box(1,1,16,16,7,'#604b3e','#352b2b','#26303b',-7);
+  for(let y=1;y<17;y++)for(let x=1;x<17;x++) {
+    const woods=['#594338','#624a3c','#574034','#674e40'];
+    poly(quad(x,y,1,1),woods[y%4]);
+    poly(quad(x,y,1,.025),'#3a302c');
+    if((x+y*2)%4===0)poly(quad(x,y,.025,1),'#3a302c');
+    if((x+y*3)%4===0)poly(quad(x+.15,y+.3,.65,.018),'#765947');
+  }
+  wallQuad('l',1,17,0,WALL,'#272b37');wallQuad('r',1,17,0,WALL,'#242a3b');
+  for(const [side,end] of [['l',17],['r',17]]) {
+    wallQuad(side,1,end,0,5,'#725543');wallQuad(side,1,end,69,72,'#172532');
+    wallQuad(side,1,end,62,63,'#b2966c');
+  }
+  wallQuad('r',9,16,24,58,'#141c2b');wallQuad('r',9.2,15.8,26,56,'#d4c6a5');
+  wallText('r',9.5,47,'ROADMAP','bold 5px monospace','#313747');
+  ['1. PLAN','2. BUILD','3. REVIEW','4. DEPLOY'].forEach((s,i)=>wallText('r',9.6,42-i*4,s,'3px monospace','#414457'));
+  [12.7,13.8,14.8].forEach((a,i)=>{wallQuad('r',a,a+.3,39-i*4,41-i*4,['#587a92','#a3769e','#7b936b'][i]);});
+  // Bookshelf, framed prints and a warm wall light use the same room palette.
+  wallQuad('l',5,15,8,28,'#161f29');
+  for(let h=10;h<28;h+=9) {
+    for(let a=5.2;a<14.8;a+=.4)wallQuad('l',a,a+.25,h,h+6,['#896b52','#476c73','#a9916a'][Math.floor(a*9)%3]);
+    wallQuad('l',5,15,h-2,h,'#896648');
+  }
+  wallQuad('r',3,8,32,54,'#17232f');wallQuad('r',3.2,7.8,34,52,'#546b70');
+  wallText('r',3.6,41,'SYSTEM ONLINE','bold 5px monospace','#a1dfc4');
+  wallQuad('l',3,8,34,61,'#17232f');wallQuad('l',3.2,7.8,36,59,'#c8bda3');
+  wallText('l',7.5,52,'SYSTEM ARCHITECTURE','bold 3px monospace','#35454d');
+  for(let a=3.6;a<7.5;a+=1.2){wallQuad('l',a,a+.8,40,47,'#526575');wallQuad('l',a+.12,a+.68,41,46,'#e0d7bd');}
+  wallQuad('l',9,15,37,60,'#16243a');
+  wallText('l',14.5,46,'< AI / LAB >','bold 7px monospace','#79cfeb');
+  poly(quad(9.5,15.5,3,1.5),'#273a43');
+}
 function drawRoom(t) {
+  if(HOME){drawHomeRoom(t);return;}
   drawBangkok(t);
   drawBuildingExterior();
   // floor
@@ -503,6 +709,35 @@ function drawRoom(t) {
 }
 
 // ---------- furniture ----------
+const detailedSprites = Object.fromEntries([
+  ['desk','desk-workstation-v1.png',[188,17,1174,983]],['rack','server-rack-v1.png',[246,108,530,1307]],
+  ['sofa','sofa-v1.png',[320,30,1135,829]],['coffeeBar','coffee-bar-v1.png',[314,38,920,936]],['coffeeTable','coffee-table-v1.png',[130,108,1276,832]],
+  ['table','meeting-table-v1.png',[103,42,1330,958]],['plant','plant-v1.png',[171,8,958,1174],.7,.7],
+  ['armchair','armchair-v1.png',[193,82,1018,1013]],['chair','office-chair-v1.png',[255,67,786,1152],.7,.7],
+  ['barStool','bar-stool-v1.png',[244,76,730,1138],.6,.6],['daybed','bunk-bed-v1.png',[330,36,880,955],2,1],
+].map(([kind,file,crop,w,d])=>{
+  const image=new Image();image.src=`/assets/detailed/${file}`;
+  return [kind,{image,crop,w,d}];
+}));
+function detailedPlacement(o) {
+  const asset=detailedSprites[o.kind === 'controlDesk' ? 'desk' : o.kind];
+  if(!detailedAssets || !asset || !asset.image.complete || !asset.image.naturalWidth)return false;
+  const {image}=asset;
+  const crop=asset.crop || [0,0,image.naturalWidth,image.naturalHeight];
+  const [sx,sy,sw,sh]=crop;
+  const w=asset.w || o.w, d=asset.d || o.d;
+  const gx=o.x+(w<o.w?(o.w-w)/2:0), gy=o.y+(d<o.d?(o.d-d)/2:0);
+  const left=iso(gx,gy+d)[0], bottom=iso(gx+w,gy+d)[1];
+  const width=(w+d)*TW/2, height=width*sh/sw;
+  return {image,crop,left,top:bottom-height,width,height};
+}
+function drawDetailedFurniture(o) {
+  const placement=detailedPlacement(o);
+  if(!placement)return false;
+  const {image,crop,left,top,width,height}=placement;
+  ctx.drawImage(image,...crop,Math.round(left),Math.round(top),width,height);
+  return true;
+}
 function shadowQ(gx, gy, w, d) { poly(quad(gx + .05, gy + .15, w, d), 'rgba(15,42,82,.14)'); }
 function plantTop(p, s = 1) {
   const [x, y] = p;
@@ -510,7 +745,17 @@ function plantTop(p, s = 1) {
   rect(x - 9 * s, y - 6 * s, 4 * s, 4 * s, C.leaf2); rect(x + 5 * s, y - 8 * s, 4 * s, 4 * s, C.leaf2);
 }
 function drawObject(o, t) {
+  if(HOME && (o.role || o.kind==='table')) {
+    const p=detailedPlacement(o), [x,y]=iso(o.x+o.w/2,o.y);
+    const text=o.role || 'PROJECT MANAGER', color=o.accent || '#bb9ade';
+    const top=p?p.top-6:y-30;
+    ctx.font='bold 3px monospace';const width=ctx.measureText(text).width+6;
+    rect(x-width/2,top-5,width,7,'#111f30');
+    rect(x-width/2,top+2,width,.5,color);
+    ctx.fillStyle=color;ctx.textAlign='center';ctx.fillText(text,x,top);ctx.textAlign='left';
+  }
   const { x, y, w, d } = o;
+  if(drawDetailedFurniture(o))return;
   switch (o.kind) {
     case 'controlDesk':
       shadowQ(x,y,w,d);
@@ -738,7 +983,37 @@ function sprite(look, view, frame, prop, sit) {
   return c;
 }
 
+function hqCharacterFrame(a,t) {
+  const seated=(!a.room || a.room==='work') && !a.path.length && ['read','write','web'].includes(a.state) && a.x===4 && a.y===8;
+  const image=hqCharacters[seated?'seated':'walk'];
+  if(!image.complete || !image.naturalWidth || !image.naturalHeight)return null;
+  if(seated)return {image,crop:[175,100,800,1250],height:56,flip:a.x<6};
+  const frame=a.path.length ? [1,0,2,0][Math.floor(t/180)%4] : 0;
+  const row=a.dir===3?0:1, w=image.naturalWidth/3,h=image.naturalHeight/2;
+  return {image,crop:[frame*w,row*h,w,h],height:70,flip:!!a.flip};
+}
+function drawHQCharacter(a,t) {
+  if(!hqReady())return false;
+  const frame=hqCharacterFrame(a,t);if(!frame)return false;
+  const seated=frame.image===hqCharacters.seated;
+  const {image,crop,height,flip}=frame;
+  const width=height*crop[2]/crop[3];
+  let [x,y]=iso(a.x+.5,a.y+.5);
+  if(seated) {
+    const hip=hqScreen([620,419]);
+    const scale=height/crop[3], hipX=410,hipY=900;
+    x=hip[0]-(flip?-1:1)*(hipX-crop[0]-crop[2]/2)*scale;
+    y=hip[1]+height-(hipY-crop[1])*scale;
+  }
+  ctx.fillStyle='rgba(0,0,0,.22)';ctx.beginPath();ctx.ellipse(x,y,6,2.5,0,0,Math.PI*2);ctx.fill();
+  ctx.save();ctx.translate(x,y);if(flip)ctx.scale(-1,1);
+  ctx.imageSmoothingEnabled=true;
+  ctx.drawImage(image,...crop,-width/2,-height,width,height);
+  ctx.restore();a.sx=x;a.sy=y;a.top=y-height;
+  return true;
+}
 function drawAgent(a, t) {
+  if(drawHQCharacter(a,t))return;
   const upperBunk = a.sleeping && [4,8].includes(a.x);
   const [x, y] = iso(a.x + (upperBunk ? -.5 : .5), a.y + .5);
   a.look = a.look || lookFor(a.sid, a.kind);
@@ -753,11 +1028,15 @@ function drawAgent(a, t) {
   const bob = a.path.length ? (frame === 1 ? 1 : 0) : 0;
   ctx.save();
   if (a.sleeping) {
-    ctx.translate(Math.round(x),Math.round(y)-(upperBunk ? 31 : 9));
-    ctx.rotate(-Math.PI/2);
+    const bed=detailedPlacement({kind:'daybed',x:upperBunk?a.x-1:a.x,y:a.y,w:1,d:1});
+    const cx=bed?bed.left+bed.width*.5:x;
+    const cy=bed?bed.top+bed.height*(upperBunk?.305:.657):y-(upperBunk?31:9);
+    ctx.translate(Math.round(cx),Math.round(cy));
+    ctx.rotate(bed?-Math.atan(2):-Math.PI/2);
+    if(bed)ctx.scale(.65,.65);
     ctx.drawImage(img,-SW/2,-SH/2);
     ctx.restore();
-    a.sx=x;a.sy=y-(upperBunk ? 22 : 0);a.top=a.sy-22;
+    a.sx=cx;a.sy=bed?cy+10:y-(upperBunk ? 22 : 0);a.top=a.sy-22;
     return;
   }
   ctx.translate(Math.round(x), 0);
@@ -790,7 +1069,7 @@ cv.onpointermove = e => { pointer = { x:e.clientX, y:e.clientY }; };
 cv.onpointerleave = () => { pointer = null; tooltip.hidden = true; };
 function hoveredAgent(x, y) {
   return [...agents.values()].sort((a,b) => b.x+b.y-a.x-a.y).find(a =>
-    a.sx !== undefined && Math.abs(x-a.sx) <= Math.max(14,(a.tagWidth || 0)/2) && y >= a.top-14 && y <= a.sy+15);
+    (!HOME || (a.room||'work')===selectedRoom) && a.sx !== undefined && Math.abs(x-a.sx) <= Math.max(14,(a.tagWidth || 0)/2) && y >= a.top-14 && y <= a.sy+15);
 }
 function updateTooltip() {
   if (!pointer) { tooltip.hidden = true; return; }
@@ -812,21 +1091,31 @@ function updateTooltip() {
 
 function drawScene(t) {
   updateLighting();
+  positionHotspots();
+  updateRoomControls();
   drawRoom(t);
-  const items = objects.map(o => ({ k: o.depth, draw: () => drawObject(o, t) }));
-  for (const a of agents.values()) items.push({ k: a.x + a.y + .6, draw: () => drawAgent(a, t) });
-  items.sort((p, q) => p.k - q.k).forEach(i => i.draw());
+  if(HOME && selectedRoom!=='work' && !hqReady())return;
+  const visibleAgents=[...agents.values()].filter(a=>!HOME || (a.room||'work')===selectedRoom);
+  const items = hqReady() ? [] : objects.map(o => ({ k: o.depth, draw: () => drawObject(o, t) }));
+  for (const a of visibleAgents) items.push({ k: a.x + a.y + .6, draw: () => drawAgent(a, t) });
+  if(hqReady()) {
+    // shortcut: opaque foreground avatars until furniture has accurate exported alpha layers.
+    ctx.save();ctx.globalAlpha=1;
+    visibleAgents.sort((a,b)=>hqPoint(a.x+.5,a.y+.5)[1]-hqPoint(b.x+.5,b.y+.5)[1]).forEach(a=>drawAgent(a,t));
+    ctx.restore();
+  } else items.sort((p, q) => p.k - q.k).forEach(i => i.draw());
   drawAmbientLight();
-  for (const a of agents.values()) if (a.sx) drawTags(a, t);
+  for (const a of visibleAgents) if (a.sx) drawTags(a, t);
 }
 
 function drawAmbientLight() {
+  if(hqReady())return;
   const darkness = 1-lighting.daylight;
   if (!darkness) return;
-  rect(0,0,W,H,`rgba(12,24,65,${darkness*.28})`);
+  rect(0,0,W,H,`rgba(12,24,65,${darkness*(HOME?.12:.28)})`);
   // Warm pools of indoor light preserve visibility while the windows turn dark.
   ctx.save(); ctx.globalCompositeOperation = 'screen';
-  [[5,4],[18,4],[6,16],[25,16]].forEach(([gx,gy]) => {
+  (HOME ? [[4,4],[11,4],[5,11],[12,11]] : [[5,4],[18,4],[6,16],[25,16]]).forEach(([gx,gy]) => {
     const [x,y] = iso(gx,gy), glow=ctx.createRadialGradient(x,y,0,x,y,65);
     glow.addColorStop(0,`rgba(255,210,128,${darkness*.20})`); glow.addColorStop(1,'rgba(255,210,128,0)');
     ctx.fillStyle=glow;ctx.fillRect(x-65,y-65,130,130);
@@ -841,10 +1130,11 @@ function frame(t) {
   const counts=new Map();
   expireAgents(Date.now());
   for(const [sid,a] of agents){
+    updateAgentRoom(a);
     const spots=zones[a.state]||zones.idle, idx=counts.get(spots)||0;counts.set(spots,idx+1);
     const target=chooseTarget(a,spots[idx%spots.length],t), targetKey=key(...target);
     // Finish the current tile before replanning, so a new event cannot cut a corner through a wall.
-    if(a.target!==targetKey&&(!a.path.length||(a.x===a.path[0][0]&&a.y===a.path[0][1]))){a.path=route([Math.round(a.x),Math.round(a.y)],target);a.target=targetKey;}
+    if(a.target!==targetKey&&(!a.path.length||(a.x===a.path[0][0]&&a.y===a.path[0][1]))){a.path=route([Math.round(a.x),Math.round(a.y)],target,a.room);a.target=targetKey;}
     if(a.path.length){const [nx,ny]=a.path[0],dx=nx-a.x,dy=ny-a.y,dist=Math.hypot(dx,dy),step=dt*3.5;
       if(dist<=step){a.x=nx;a.y=ny;a.path.shift();if(a.target!==targetKey){a.target=null;a.path=[];}}
       else{

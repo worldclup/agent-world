@@ -52,6 +52,17 @@
   .settings-heading button { font: 18px var(--font-body); padding: 2px 9px; }
   #scene-settings fieldset { border: 0; margin: 16px 0; padding: 0; }
   #scene-settings legend { margin-bottom: 8px; font-weight: 600; }
+  .scene-options { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+  #scene-settings .scene-choice { display:block; padding:12px; border:2px solid var(--line); background:var(--panel); color:#e3edff; text-decoration:none; }
+  #scene-settings .scene-choice:visited { color:#e3edff; }
+  #scene-settings .scene-choice:hover,#scene-settings .scene-choice[aria-current="page"] { border-color:#8fcaff; background:#2d4567; }
+  #scene-settings .scene-choice:focus-visible { outline:2px solid white; outline-offset:3px; }
+  .scene-choice strong,.scene-choice small { display:block; }
+  .scene-choice small { margin-top:4px; color:var(--muted); }
+  .art-studies { margin:18px 0; border-top:1px solid var(--line); padding-top:12px; }
+  .art-studies summary { cursor:pointer; color:var(--muted); }
+  #scene-settings .art-studies a { display:block; color:#a9d4ff; padding:6px 0; }
+  @media(max-width:440px) { .scene-options { grid-template-columns:1fr; } }
   .building-options { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; }
   .building-card { position: relative; display: block; cursor: pointer; padding: 8px; border: 2px solid var(--line); background: var(--panel); }
   .building-card:has(input:checked) { border-color: #8fcaff; background: #2d4567; }
@@ -66,6 +77,13 @@
   .settings-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
   .settings-actions button { font: 600 13px var(--font-body); }
   #save-settings { background: #315f9d; }
+  .asset-setting { display: flex; gap: 10px; align-items: flex-start; margin: 16px 0 10px; padding: 10px; background: var(--panel); border: 1px solid var(--line); }
+  .asset-setting input { margin-top: 5px; accent-color: #79a9ef; }
+  .asset-setting small { display: block; color: var(--muted); }
+  .asset-previews { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .asset-previews figure { margin: 0; padding: 10px; border: 1px solid var(--line); background: #111d31; }
+  .asset-previews img { display: block; width: 100%; height: 150px; object-fit: contain; image-rendering: pixelated; }
+  .asset-previews figcaption { color: var(--muted); font-size: 11px; margin-top: 6px; }
   #cancel-settings { background: var(--panel); }
   @media (max-width: 400px) { .building-options { grid-template-columns: 1fr; } }
   #log { flex: 1; min-height: 0; max-height: none; border-width: 1px; border-radius: 0; }
@@ -97,6 +115,23 @@
   button:hover { background: #2f7be0; }
   #status { font: 12px/1.7 var(--font-body); color: var(--muted); flex: 1 1 200px; min-width: 0; overflow-wrap: anywhere; }
   #local-time { position: absolute; top: 12px; left: 12px; max-width: calc(100% - 24px); padding: 5px 10px; background: var(--panel); color: var(--navy); border: 1px solid var(--line); border-radius: 0; font: 12px/1.6 var(--font-body); pointer-events: none; }
+  #zone-hotspots { position:absolute; inset:0; pointer-events:none; }
+  .zone-dot { position:absolute; transform:translate(-50%,-50%); width:36px; height:36px; border:0; padding:0; background:transparent; cursor:pointer; pointer-events:auto; color:var(--zone-color); }
+  .zone-dot:hover,.zone-dot:focus,.zone-dot:active { background:transparent; box-shadow:none; }
+  .zone-dot::before { content:''; display:block; margin:auto; width:11px; height:11px; border:2px solid #f1f5ff; border-radius:50%; background:currentColor; box-shadow:0 0 0 4px #111e32aa,0 0 12px currentColor; }
+  .zone-dot::after { content:attr(aria-label); position:absolute; left:50%; bottom:100%; transform:translateX(-50%); white-space:nowrap; background:#111e32; border:1px solid currentColor; padding:4px 8px; color:#eaf2ff; font:12px var(--font-body); opacity:0; pointer-events:none; }
+  .zone-dot:hover::after,.zone-dot:focus-visible::after { opacity:1; }
+  .zone-dot:focus-visible { outline:2px solid #fff; outline-offset:2px; }
+  #hq-rooms { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px; }
+  #hq-rooms[hidden] { display:none; }
+  #hq-rooms button { padding:7px 9px; border:1px solid var(--line); background:var(--panel); color:var(--navy); font:13px var(--font-body); cursor:pointer; }
+  #hq-rooms button[aria-pressed="true"] { border-color:#91d4e7; color:#bdeeff; background:#2b4560; }
+  #hq-rooms button:focus-visible { outline:2px solid white;outline-offset:2px; }
+  #room-caption { margin:0 0 10px; color:var(--muted); font:11px/1.6 var(--font-body); }
+  #zone-details { width:min(420px,calc(100vw - 24px)); padding:20px; background:var(--bg); color:var(--navy); border:2px solid var(--line); font:14px/1.8 var(--font-body); }
+  #zone-details::backdrop { background:#070d20aa; }
+  #zone-details h2 { margin:0 0 12px; font-size:18px; }
+  #zone-details button { padding:7px 16px; background:var(--panel); color:var(--navy); border:1px solid var(--line); cursor:pointer; font:inherit; }
   #status::before { content: ''; display: inline-block; width: 8px; height: 8px; margin-right: 7px; background: #8b9bb2; }
   #status[data-connection="online"]::before { background: #2e9d69; }
   #status[data-connection="offline"]::before { background: #d95353; }
@@ -165,8 +200,21 @@
   <div class="scene">
     <canvas id="c" aria-label="แผนที่ Agent Office พร้อมสถานะกิจกรรม"></canvas>
     <span id="local-time" aria-label="เวลาและช่วงวันตามเครื่องของคุณ"></span>
+    <div id="zone-hotspots" role="group" aria-label="จุดข้อมูลโซน Agent HQ" hidden>
+      <button class="zone-dot" id="zone-dev" aria-label="Dev · อ่านและแก้ไขโค้ด" aria-haspopup="dialog" aria-controls="zone-details" style="--zone-color:#6ee1ec"></button>
+      <button class="zone-dot" id="zone-entry" aria-label="Entrance · ทางเข้าห้องทำงาน" aria-haspopup="dialog" aria-controls="zone-details" style="--zone-color:#8bdbac"></button>
+      <button class="zone-dot" id="zone-security" aria-label="Security · ตรวจสอบระบบ" aria-haspopup="dialog" aria-controls="zone-details" style="--zone-color:#bc9bf4"></button>
+      <button class="zone-dot" id="zone-meeting" aria-label="Meeting · คิดและวางแผน" aria-haspopup="dialog" aria-controls="zone-details" style="--zone-color:#f3c782"></button>
+      <button class="zone-dot" id="zone-server" aria-label="Server · รันคำสั่ง" aria-haspopup="dialog" aria-controls="zone-details" style="--zone-color:#83b7ff"></button>
+      <button class="zone-dot" id="zone-sofa" aria-label="โซฟา · พักและนั่งเล่น" aria-haspopup="dialog" aria-controls="zone-details" style="--zone-color:#8bdbac" hidden></button>
+      <button class="zone-dot" id="zone-coffee" aria-label="บาร์กาแฟ · มุมผ่อนคลาย" aria-haspopup="dialog" aria-controls="zone-details" style="--zone-color:#f3c782" hidden></button>
+      <button class="zone-dot" id="zone-bed-left" aria-label="เตียงชุดซ้าย · 2 ที่พัก" aria-haspopup="dialog" aria-controls="zone-details" style="--zone-color:#a4baff" hidden></button>
+      <button class="zone-dot" id="zone-bed-right" aria-label="เตียงชุดขวา · 2 ที่พัก" aria-haspopup="dialog" aria-controls="zone-details" style="--zone-color:#d4afff" hidden></button>
+    </div>
   </div>
   <aside class="sidebar" aria-label="เครื่องมือและกิจกรรม Agent">
+    <nav id="hq-rooms" aria-label="เลือกห้อง HQ" hidden><button id="room-work" aria-pressed="true">ห้องทำงาน</button><button id="room-lounge" aria-pressed="false">ห้องนั่งเล่น</button><button id="room-rest" aria-pressed="false">ห้องพักผ่อน</button></nav>
+    <p id="room-caption"></p>
     <div class="scene-controls">
     <button id="demo"><span class="icon" style="--icon:url('/assets/icons/play.svg')" aria-hidden="true"></span>DEMO</button>
     <button id="open-settings" aria-label="ตั้งค่าฉาก" title="ตั้งค่าฉาก" aria-haspopup="dialog" aria-controls="scene-settings"><span class="icon" style="--icon:url('/assets/icons/sliders.svg')" aria-hidden="true"></span></button>
@@ -215,9 +263,18 @@
   </div>
   <aside id="agent-tooltip" role="tooltip" hidden><strong id="agent-tooltip-name"></strong><p id="agent-tooltip-state"></p><p id="agent-tooltip-task"></p></aside>
 </main>
+<dialog id="zone-details" aria-labelledby="zone-title" aria-describedby="zone-description">
+  <h2 id="zone-title"></h2><p id="zone-description"></p><p id="zone-target"></p><p id="zone-activity"></p>
+  <button id="close-zone" type="button">ปิด</button>
+</dialog>
 <dialog id="scene-settings" aria-labelledby="settings-title">
   <div class="settings-heading"><h2 id="settings-title">ตั้งค่าฉาก</h2><button id="close-settings" aria-label="ปิดและยกเลิก">×</button></div>
-  <p>เลือกสไตล์ตึกแล้วพื้นหลังจะจับคู่ให้ทันที คุณยังปรับบรรยากาศเองได้ แสงเปลี่ยนตามเวลาเครื่องของคุณ</p>
+  <fieldset><legend>เลือกฉาก</legend><div class="scene-options">
+    <a id="scene-home" class="scene-choice" href="/?scene=home"><strong>บ้าน AI · 3 ห้อง</strong><small>ห้องทำงาน · ห้องนั่งเล่น · ห้องพักผ่อน</small></a>
+    <a id="scene-office" class="scene-choice" href="/?scene=office"><strong>ออฟฟิศคลาสสิก</strong><small>ฉากเดิม · ปรับธีมตึกและบรรยากาศได้</small></a>
+  </div><p>บ้าน AI สลับห้องได้จากแถบด้านข้างโดยไม่โหลดหน้าใหม่ การเปลี่ยนฉากที่นี่จะโหลดหน้าใหม่และเริ่มรายการกิจกรรมในหน้าอีกครั้ง</p></fieldset>
+  <details class="art-studies"><summary>ภาพต้นแบบ · สำหรับทดลอง</summary><a href="/character.html">ตัวละคร · ยืน / นั่ง</a><a href="/shell.html">พื้นและกำแพง · ห้องเปล่า</a></details>
+  <p>ตัวเลือกด้านล่างใช้กับออฟฟิศคลาสสิกเท่านั้น บ้าน AI ใช้ภาพและแสงคงที่ตามแบบ</p>
   <fieldset><legend>สไตล์ตึก</legend><div class="building-options">
     <label class="building-card"><div class="building-preview" aria-hidden="true"></div><input type="radio" name="building" value="modern" id="building-modern"><b>Modern Office</b><small>ผนังขาว กระจกฟ้า เส้นสายเรียบ</small></label>
     <label class="building-card"><div class="building-preview preview-cyber" aria-hidden="true"></div><input type="radio" name="building" value="cyber" id="building-cyber"><b>Cyberpunk</b><small>โครงตึกเข้ม ไฟ cyan–magenta</small></label>
@@ -231,6 +288,20 @@
       <option value="neon">Neon Bangkok · ไฟเมือง</option>
     </select>
   </label>
+  <label class="asset-setting"><input type="checkbox" id="detailed-assets"><span>เฟอร์นิเจอร์ละเอียด · ทดลอง<small>ชุดเฟอร์นิเจอร์ AI ครบโซนหลัก ตัวละครและโครงสร้างห้องยังใช้ชุดเดิม</small></span></label>
+  <div class="asset-previews">
+    <figure><img src="/assets/detailed/desk-workstation-v1.png" alt="ต้นแบบโต๊ะไม้พร้อมจอคู่"><figcaption>Workstation · โต๊ะและอุปกรณ์แยกจาก Agent</figcaption></figure>
+    <figure><img src="/assets/detailed/server-rack-v1.png" alt="ต้นแบบตู้เซิร์ฟเวอร์"><figcaption>Server rack · หน้าเครื่องหันเข้าทางเดิน</figcaption></figure>
+    <figure><img loading="lazy" src="/assets/detailed/sofa-v1.png" alt="โซฟาสีน้ำเงินเข้ม"><figcaption>Lounge · โซฟาสามที่นั่ง</figcaption></figure>
+    <figure><img loading="lazy" src="/assets/detailed/coffee-bar-v1.png" alt="เคาน์เตอร์กาแฟ"><figcaption>Coffee bar · เคาน์เตอร์พร้อมเครื่องกาแฟ</figcaption></figure>
+    <figure><img loading="lazy" src="/assets/detailed/coffee-table-v1.png" alt="โต๊ะกาแฟไม้"><figcaption>Coffee table · โต๊ะพักผ่อน</figcaption></figure>
+    <figure><img loading="lazy" src="/assets/detailed/meeting-table-v1.png" alt="โต๊ะประชุมไม้"><figcaption>Meeting · โต๊ะประชุมพร้อมอุปกรณ์</figcaption></figure>
+    <figure><img loading="lazy" src="/assets/detailed/plant-v1.png" alt="ต้นไม้ในกระถาง"><figcaption>Greenery · ต้นไม้ตกแต่ง</figcaption></figure>
+    <figure><img loading="lazy" src="/assets/detailed/armchair-v1.png" alt="อาร์มแชร์สีน้ำเงิน"><figcaption>Armchair · เก้าอี้นั่งพัก</figcaption></figure>
+    <figure><img loading="lazy" src="/assets/detailed/office-chair-v1.png" alt="เก้าอี้ทำงาน"><figcaption>Office chair · เก้าอี้ทำงาน</figcaption></figure>
+    <figure><img loading="lazy" src="/assets/detailed/bar-stool-v1.png" alt="เก้าอี้บาร์"><figcaption>Bar stool · เก้าอี้สูง</figcaption></figure>
+    <figure><img loading="lazy" src="/assets/detailed/bunk-bed-v1.png" alt="เตียงสองชั้น"><figcaption>Quiet Room · เตียงสองชั้น</figcaption></figure>
+  </div>
   <div class="settings-actions"><button id="cancel-settings">ยกเลิก</button><button id="save-settings">บันทึก</button></div>
 </dialog>
 <script src="/office.js"></script>

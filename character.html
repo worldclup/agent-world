@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="th">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Agent HQ · Character study</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#080f20;color:#e5d6b4;font:16px system-ui,sans-serif}main{max-width:1200px;margin:auto;padding:20px}header,nav{display:flex;gap:10px;align-items:center;flex-wrap:wrap}h1{font-size:22px;margin-right:auto}a,button{background:#18283e;border:1px solid #48627e;color:#dbe8f4;padding:10px 14px;font:inherit;cursor:pointer}button[aria-pressed=true]{border-color:#e5cf98;color:#e5cf98}p{color:#9eb1c5;line-height:1.6}.scene{position:relative;aspect-ratio:3/2;border:1px solid #2b405a;background:#0d1728;overflow:hidden}.room{width:100%;height:100%;display:block}.actor{position:absolute;object-fit:contain;transform:translateX(-50%);width:8%;height:21%;left:52%;bottom:37%;filter:drop-shadow(0 2px 2px #0005)}.actor.seated{width:8%;height:17%;left:40%;bottom:52%}.actor[hidden]{display:none}.samples{display:flex;gap:16px}.samples figure{margin:15px 0;padding:12px;border:1px solid #2b405a;background:#111d2f;flex:1}.samples img{display:block;width:100%;height:230px;object-fit:contain}figcaption{color:#9eb1c5;text-align:center}a:focus-visible,button:focus-visible{outline:2px solid white;outline-offset:3px}
+</style>
+<main><header><h1>ตัวละครต้นแบบ · Agent HQ</h1><a href="/?scene=home">กลับฉาก AI</a></header>
+<p>คนเดียวกันในท่ายืนและนั่ง · ชุดเดินใหม่เชื่อมกับ <a href="/?scene=home">Agent HQ จริง</a> แล้ว ส่วนหน้านี้ใช้เทียบท่าภาพนิ่ง</p>
+<nav aria-label="เลือกท่าตัวละคร"><button id="standing" aria-pressed="true">ยืน</button><button id="seated" aria-pressed="false">นั่งทำงาน</button></nav>
+<p id="caption" aria-live="polite">ต้นแบบท่ายืนในห้องจริง</p>
+<div class="scene"><img class="room" src="/assets/detailed/hq-furnished-v2.png" alt="ห้อง Agent HQ ที่เลือก"><img class="actor" id="standing-layer" src="/assets/detailed/hq-character-standing-v1.png" alt="ตัวละครนักพัฒนาท่ายืน"><img class="actor seated" id="seated-layer" src="/assets/detailed/hq-character-seated-v1.png" alt="ตัวละครคนเดิมนั่งทำงาน" hidden></div>
+<div class="samples"><figure><img src="/assets/detailed/hq-character-standing-v1.png" alt="ภาพขยายท่ายืน"><figcaption>ท่ายืน · ภาพขยาย</figcaption></figure><figure><img src="/assets/detailed/hq-character-seated-v1.png" alt="ภาพขยายท่านั่ง"><figcaption>ท่านั่ง · ภาพขยาย</figcaption></figure></div>
+<p>ภาพท่านั่งวางเทียบกับเก้าอี้เดิม ยังไม่ใช่การประกอบตัวละครกับเก้าอี้แบบแยกเลเยอร์สมบูรณ์</p>
+</main>
+<script>
+for(const pose of ['standing','seated'])document.getElementById(pose).onclick=()=>{
+  for(const name of ['standing','seated']){
+    document.getElementById(name).setAttribute('aria-pressed',String(name===pose));
+    document.getElementById(name+'-layer').hidden=name!==pose;
+  }
+  document.getElementById('caption').textContent=pose==='standing'?'ต้นแบบท่ายืนในห้องจริง':'ต้นแบบท่านั่ง · ทดลองตำแหน่งกับเก้าอี้เดิม';
+};
+for(const pose of ['standing','seated'])document.getElementById(pose+'-layer').onerror=()=>{document.getElementById('caption').textContent='โหลดภาพไม่สำเร็จ กรุณารีเฟรชเมื่อเซิร์ฟเวอร์พร้อม';};
+</script>
+</html>
