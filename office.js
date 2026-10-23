@@ -93,7 +93,8 @@ object(25,1,1,7,'glass',{edge:true,trimEnd:true});
 object(1,8,8,1,'glass',{edge:true,joinAt:'end'});
 object(8,11,1,5,'glass',{edge:true});object(8,18,1,1,'glass',{edge:true});
 object(1,13,8,1,'glass',{edge:true,joinAt:'end'});
-object(2,10,3,2,'diningTable');deco(1,10,'chair');deco(5,11,'chair');
+object(2,10,3,2,'diningTable');
+[[1,10],[1,11],[5,10],[5,11],[2,9],[4,9],[2,12],[4,12]].forEach(([x,y])=>deco(x,y,'chair'));
 object(26,15,2,1,'readingDesk');object(29,15,2,1,'readingDesk');
 deco(26,16,'chair');deco(29,16,'chair');
 for(const x of [25,28]) {
@@ -294,11 +295,12 @@ function setLayout(name) {
     for(let y=0;y<ROWS;y++){wall(0,y);wall(COLS-1,y);}
     roamSpots.push(...zones.idle,...barSeats);
   }
+  zones.think=meetingSeats().map(o=>[o.x,o.y]);
   zones.talk=zones.think;zones.agent=zones.think;
   // Keep the facade running below the crop, like the original large office.
   Object.assign(VIEW,{x:OX-(ROWS-2)*12,y:OY-WALL-16,w:(COLS+ROWS-4)*12,h:(COLS+ROWS-2)*6+WALL+36});
   cv.width=VIEW.w*SCALE;cv.height=VIEW.h*SCALE;
-  for(const a of agents.values())Object.assign(a,{x:ENTRY[0],y:ENTRY[1],path:[],target:null,roamTarget:null,nextRoam:0,sleeping:false,sleepSpot:null,sx:undefined,sy:undefined});
+  for(const a of agents.values())Object.assign(a,{x:ENTRY[0],y:ENTRY[1],path:[],target:null,meetingSeat:null,roamTarget:null,nextRoam:0,sleeping:false,sleepSpot:null,sx:undefined,sy:undefined});
   for(const key of Object.keys(OFFICE_LAYOUTS))document.getElementById('layout-'+key).checked=key===name;
 }
 function upperBedAt(a) {
@@ -312,7 +314,24 @@ function sleepTarget(a, now, night) {
   a.sleeping = !!a.sleepSpot && !a.path.length && a.x === a.sleepSpot[0] && a.y === a.sleepSpot[1];
   return a.sleepSpot;
 }
+function meetingSeats() {
+  return objects.filter(o=>o.kind==='chair'&&AREAS.some(area=>['MEETING','HUDDLE'].includes(area.title)&&o.x>=area.x&&o.x<area.x+area.w&&o.y>=area.y&&o.y<area.y+area.h));
+}
+function atMeetingSeat(a) {
+  return !a.path.length&&['think','talk','agent'].includes(a.state)&&meetingSeats().some(o=>o.x===a.x&&o.y===a.y);
+}
 function chooseTarget(a, assigned, now) {
+  if(['think','talk','agent'].includes(a.state)) {
+    const available=zones.think.filter(p=>![...agents.values()].some(other=>other!==a&&
+      ((other.x===p[0]&&other.y===p[1])||(['think','talk','agent'].includes(other.state)&&other.meetingSeat===key(...p)))));
+    const main=AREAS.find(area=>area.title==='MEETING');
+    const mainSeats=officeLayout==='large'?available.filter(([x,y])=>x>=main.x&&x<main.x+main.w&&y>=main.y&&y<main.y+main.h):[];
+    const preferred=mainSeats.length?mainSeats:available;
+    const seat=preferred.find(p=>key(...p)===a.meetingSeat)||preferred.find(p=>key(...p)===key(...assigned))||preferred[0];
+    a.meetingSeat=seat?key(...seat):null;
+    return seat||[Math.round(a.x),Math.round(a.y)];
+  }
+  a.meetingSeat=null;
   const nap = sleepTarget(a,Date.now(),lighting.label === 'กลางคืน');
   if (nap) return nap;
   if (a.state !== 'idle') return assigned;
@@ -1061,7 +1080,7 @@ function drawAgent(a, t) {
   const working = !a.path.length && ['read', 'write', 'web', 'bash'].includes(a.state);
   const atBar = !a.path.length && a.state === 'idle' && barSeats.some(([sx,sy]) => a.x === sx && a.y === sy);
   const atSofaSeat=!a.path.length&&a.state==='idle'&&objects.some(o=>o.kind==='sofa'&&a.x>=o.x&&a.x<o.x+o.w&&a.y===o.y+(o.reverse?-1:1));
-  const sit = atBar || atSofaSeat || (!a.path.length && (['read', 'write'].includes(a.state) || (a.state === 'bash' && a.y === 20 && a.x <= 24)));
+  const sit = atBar || atSofaSeat || atMeetingSeat(a) || (!a.path.length && (['read', 'write'].includes(a.state) || (a.state === 'bash' && a.y === 20 && a.x <= 24)));
   const frame = a.path.length ? 1 + (Math.floor(t / 140) % 2) : 0;
   const prop = a.path.length ? '' : a.state === 'idle' ? 'mug' : ['think', 'talk', 'agent'].includes(a.state) ? 'tablet' : '';
   const img = sprite(a.look, atBar||atSofaSeat ? 'front' : a.dir >= 2 ? 'front' : 'back', frame, prop, sit);

@@ -309,6 +309,32 @@ vm.runInContext(`
       if(chatSofas.some(o=>o.x!==18)||chatSofas[1].y!==15)throw new Error('Both conversation sofas must move closer to TV seating');
       for(const p of [[20,11],[21,14]])if(!zones.idle.some(q=>key(...q)===key(...p))||!roamSpots.some(q=>key(...q)===key(...p)))throw new Error('AI must be able to rest near conversation sofas');
     }
+    const chairs=meetingSeats();
+    if(chairs.length!==(layout==='home'?2:layout==='medium'?8:16))throw new Error('Unexpected meeting chair count: '+layout);
+    if(layout==='large'&&chairs.filter(o=>o.y>=8&&o.y<13).length!==8)throw new Error('Small meeting room needs eight usable chairs');
+    if(chairs.length!==zones.think.length||zones.talk!==zones.think||zones.agent!==zones.think)throw new Error('All meeting activities must share every real chair');
+    for(const chair of chairs)if(!zones.think.some(p=>p[0]===chair.x&&p[1]===chair.y)||!route(ENTRY,[chair.x,chair.y]).length)throw new Error('Meeting chair must be selectable and reachable');
+    const savedAgents=[...agents];
+    try {
+      agents.clear();const reserved=new Set();
+      for(let i=0;i<chairs.length;i++) {
+        const a={sid:'seat-test-'+i,x:ENTRY[0],y:ENTRY[1],path:[],state:['think','talk','agent'][i%3]};agents.set(a.sid,a);
+        const assigned=layout==='large'?zones.think.find(p=>p[1]>=8):zones.think[0];
+        const seat=chooseTarget(a,assigned,1000),seatKey=key(...seat);
+        if(layout==='large'&&((i<8&&seat[1]>=8)||(i>=8&&seat[1]<8)))throw new Error('Main meeting room must fill before huddle room');
+        if(reserved.has(seatKey)||!zones.think.some(p=>key(...p)===seatKey))throw new Error('Meeting agents must reserve distinct real chairs');
+        reserved.add(seatKey);
+        if(key(...chooseTarget(a,zones.think[0],1100))!==seatKey)throw new Error('Reserved meeting seat must remain stable');
+        a.x=seat[0];a.y=seat[1];
+        if(!atMeetingSeat(a))throw new Error('Agent at meeting chair must sit');
+        a.path=[[...seat]];if(atMeetingSeat(a))throw new Error('Walking agent must not sit');a.path=[];
+      }
+      const waiting={sid:'waiting',x:ENTRY[0],y:ENTRY[1],path:[],state:'think'};agents.set(waiting.sid,waiting);
+      if(key(...chooseTarget(waiting,zones.think[0],1000))!==key(...ENTRY)||waiting.meetingSeat)throw new Error('Full meeting rooms must not assign occupied chairs');
+      const first=agents.values().next().value,freed=first.meetingSeat;
+      first.state='idle';first.x=ENTRY[0];first.y=ENTRY[1];
+      if(key(...chooseTarget(waiting,zones.think[0],1200))!==freed)throw new Error('Released meeting chair must become available');
+    }finally {agents.clear();for(const [id,a] of savedAgents)agents.set(id,a);}
     for(const target of [...Object.values(zones).flat(),...roamSpots,...napSpots]) {
       const path=route(ENTRY,target);
       if(!path.length || blocked.has(key(...target)))throw new Error('Unreachable layout target: '+layout+' '+target);
